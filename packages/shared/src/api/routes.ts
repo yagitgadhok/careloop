@@ -4,6 +4,7 @@ import {
   requestOtpBodySchema,
   selectOrgBodySchema,
   selectOrgResponseSchema,
+  sessionResponseSchema,
   verifyOtpBodySchema,
   verifyOtpResponseSchema,
 } from "../schemas/auth.js";
@@ -41,6 +42,12 @@ function route<
 
 export const apiRoutes = {
   auth: {
+    session: route({
+      method: "GET",
+      path: "/api/auth/session",
+      body: null,
+      response: sessionResponseSchema,
+    }),
     requestOtp: route({
       method: "POST",
       path: "/api/auth/otp/request",
