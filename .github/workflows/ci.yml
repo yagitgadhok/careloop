@@ -51,6 +51,7 @@ jobs:
       DATABASE_APP_PASSWORD: ci-app-password
       DATABASE_OWNER_URL: postgresql://careloop_owner:ci-owner-password@localhost:5432/careloop
       DATABASE_URL: postgresql://careloop_app:ci-app-password@localhost:5432/careloop
+      DATABASE_SHADOW_URL: postgresql://careloop_owner:ci-owner-password@localhost:5432/careloop_shadow
       REDIS_URL: redis://localhost:6379
       JWT_SECRET: ci-only-jwt-secret-not-used-anywhere-else-000000
       JWT_ISSUER: careloop-api
