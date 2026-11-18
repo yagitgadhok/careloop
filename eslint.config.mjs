@@ -78,6 +78,13 @@ export default tseslint.config(
     },
   },
   {
+    // Nest modules are empty classes carrying a @Module decorator.
+    files: ["apps/api/**/*.ts"],
+    rules: {
+      "@typescript-eslint/no-extraneous-class": ["error", { allowWithDecorator: true }],
+    },
+  },
+  {
     // The web app never touches the database package directly.
     files: ["apps/web/**/*.{ts,tsx}"],
     rules: {
