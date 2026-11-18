@@ -11,6 +11,10 @@ export type {
   UserMembershipRow,
 } from "./tenant.js";
 export type { DbOptions } from "./client.js";
+export { audit, securityEvent } from "./audit.js";
+export type { AuditEntry, SecurityEventEntry } from "./audit.js";
+export { createSecurityKeys } from "./security-keys.js";
+export type { SecurityKeys, SecurityKeyOptions } from "./security-keys.js";
 export {
   ActorType,
   MembershipStatus,

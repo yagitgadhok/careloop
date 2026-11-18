@@ -22,6 +22,7 @@
     "ops:disable-user": "node dist/scripts/disable-user.js"
   },
   "dependencies": {
+    "@careloop/shared": "workspace:*",
     "@prisma/adapter-pg": "catalog:",
     "@prisma/client": "catalog:",
     "ioredis": "catalog:",
