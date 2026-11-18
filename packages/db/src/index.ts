@@ -14,6 +14,14 @@ export type { DbOptions } from "./client.js";
 export { audit, securityEvent } from "./audit.js";
 export type { AuditEntry, SecurityEventEntry } from "./audit.js";
 export { createSecurityKeys } from "./security-keys.js";
+export {
+  createOrganisation,
+  parseCreateOrganisationArgs,
+  requireOperatorId,
+} from "./organisations.js";
+export type { CreateOrganisationInput, CreateOrganisationResult } from "./organisations.js";
+export { disableUser, parsePhoneArgs, unlockPhone } from "./operators.js";
+export type { OperatorPhoneInput } from "./operators.js";
 export type { SecurityKeys, SecurityKeyOptions } from "./security-keys.js";
 export {
   ActorType,
