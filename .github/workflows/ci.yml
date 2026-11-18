@@ -1,0 +1,112 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    name: lint, typecheck, test, e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: careloop
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d careloop"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+
+    # Generated, throwaway test values only. CI uses no repository secrets.
+    env:
+      APP_ENV: test
+      NODE_ENV: test
+      DATABASE_ADMIN_URL: postgresql://postgres:postgres@localhost:5432/careloop
+      DATABASE_OWNER_PASSWORD: ci-owner-password
+      DATABASE_APP_PASSWORD: ci-app-password
+      DATABASE_OWNER_URL: postgresql://careloop_owner:ci-owner-password@localhost:5432/careloop
+      DATABASE_URL: postgresql://careloop_app:ci-app-password@localhost:5432/careloop
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: ci-only-jwt-secret-not-used-anywhere-else-000000
+      JWT_ISSUER: careloop-api
+      JWT_AUDIENCE: careloop-web
+      OTP_PEPPER: ci-only-otp-pepper-000000000000000000000000
+      PHONE_HASH_PEPPER: ci-only-phone-pepper-0000000000000000000000
+      OPERATOR_ID: 00000000-0000-4000-8000-000000000001
+      WEB_ORIGIN: http://localhost:3000
+      API_ORIGIN: http://localhost:4000
+      API_PORT: "4000"
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Cache turbo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-${{ github.sha }}
+          restore-keys: turbo-${{ runner.os }}-
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Create database roles
+        run: pnpm db:bootstrap
+
+      - name: Apply migrations
+        run: pnpm db:migrate:deploy
+
+      - run: pnpm lint
+
+      - run: pnpm typecheck
+
+      - run: pnpm test
+
+      # Fails if schema.prisma and the migrations disagree, so hand-written
+      # constraints can't be silently dropped by a later generated migration.
+      - name: Check migration drift
+        if: hashFiles('packages/db/prisma/schema.prisma') != ''
+        run: pnpm --filter @careloop/db exec prisma migrate diff --from-migrations prisma/migrations --to-schema prisma/schema.prisma --exit-code
+
+      - name: Install Playwright browsers
+        if: hashFiles('apps/web/playwright.config.ts') != ''
+        run: pnpm --filter @careloop/web exec playwright install --with-deps chromium
+
+      - name: Seed demo data
+        if: hashFiles('apps/web/playwright.config.ts') != ''
+        run: pnpm db:seed
+
+      - name: End-to-end tests
+        if: hashFiles('apps/web/playwright.config.ts') != ''
+        run: pnpm test:e2e
