@@ -1,0 +1,20 @@
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "new-york",
+  "rsc": true,
+  "tsx": true,
+  "tailwind": {
+    "config": "",
+    "css": "src/styles/globals.css",
+    "baseColor": "neutral",
+    "cssVariables": true
+  },
+  "iconLibrary": "lucide",
+  "aliases": {
+    "components": "@careloop/ui/components",
+    "utils": "@careloop/ui/lib/cn",
+    "ui": "@careloop/ui/components",
+    "lib": "@careloop/ui/lib",
+    "hooks": "@careloop/ui/hooks"
+  }
+}
