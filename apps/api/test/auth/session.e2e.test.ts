@@ -172,9 +172,56 @@ describe("sign-out", () => {
     expect(res.body.code).toBe("session_revoked");
   });
 
-  it("requires a session for logout", async () => {
+  it("logout with only the refresh cookie revokes the session and clears both cookies", async () => {
+    const { res: signIn, cookie } = await signedIn();
+    const refreshOnly = `${REFRESH_COOKIE}=${cookieValue(signIn, REFRESH_COOKIE)}`;
+
+    const res = await t.post("/api/auth/logout", randomIp(), undefined, refreshOnly);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ok: true });
+    expect(cookieValue(res, ACCESS_COOKIE)).toBe("");
+    expect(cookieValue(res, REFRESH_COOKIE)).toBe("");
+
+    expect((await refresh(refreshOnly)).status).toBe(401);
+    const after = await t.get("/api/auth/session", cookie);
+    expect(after.status).toBe(401);
+    expect(after.body.code).toBe("session_revoked");
+  });
+
+  it("logout after the access token expired still revokes the session", async () => {
+    const { cookie } = await signedIn();
+    t.clock.advance(16 * MINUTE);
+
+    const res = await t.post("/api/auth/logout", randomIp(), undefined, cookie);
+    expect(res.status).toBe(200);
+    expect(cookieValue(res, REFRESH_COOKIE)).toBe("");
+    expect((await refresh(cookie)).status).toBe(401);
+  });
+
+  it("logout with a just-rotated refresh token inside the grace window revokes the session", async () => {
+    const { res: signIn } = await signedIn();
+    const old = `${REFRESH_COOKIE}=${cookieValue(signIn, REFRESH_COOKIE)}`;
+    const rotated = await refresh(old);
+    const current = cookieHeader(rotated, old);
+
+    const res = await t.post("/api/auth/logout", randomIp(), undefined, old);
+    expect(res.status).toBe(200);
+    expect((await refresh(current)).status).toBe(401);
+  });
+
+  it("logout with no cookies answers 200 and clears both cookies", async () => {
     const res = await t.post("/api/auth/logout", randomIp());
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ok: true });
+    expect(cookieValue(res, ACCESS_COOKIE)).toBe("");
+    expect(cookieValue(res, REFRESH_COOKIE)).toBe("");
+  });
+
+  it("logout still needs the web origin", async () => {
+    const { cookie } = await signedIn();
+    const res = await t.http.post("/api/auth/logout").set("cookie", cookie);
+    expect(res.status).toBe(403);
+    expect((await t.get("/api/auth/session", cookie)).status).toBe(200);
   });
 });
 

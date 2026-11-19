@@ -15,13 +15,13 @@ const PUBLIC_ALLOWLIST = [
   "POST /api/auth/otp/request",
   "POST /api/auth/otp/verify",
   "POST /api/auth/refresh",
+  "POST /api/auth/logout",
 ];
 
 /** Routes that need a live session but no organisation or permission. */
 const SESSION_ONLY = [
   "GET /api/auth/session",
   "POST /api/auth/org/select",
-  "POST /api/auth/logout",
   "POST /api/auth/logout-others",
 ];
 
@@ -183,7 +183,7 @@ describe("session-only routes", () => {
     expect(reads.status).toBe(401);
     expect(reads.body.code).toBe("unauthenticated");
 
-    for (const path of ["/api/auth/logout", "/api/auth/logout-others"]) {
+    for (const path of ["/api/auth/logout-others"]) {
       const res = await t.http.post(path).set("origin", t.origin);
       expect(res.status).toBe(401);
       expect(res.body.code).toBe("unauthenticated");

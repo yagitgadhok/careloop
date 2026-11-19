@@ -157,6 +157,29 @@ describe("lockout", () => {
     expect(res.status).toBe(429);
     expect(res.body.code).toBe("rate_limited");
   });
+
+  it("locks the phone for an hour, not a day, after 20 failures from many IPs", async () => {
+    const phone = await registeredPhone();
+    await t.requestOtp(phone, randomIp());
+    const code = (await t.lastCode(phone)) ?? "";
+    for (let i = 0; i < 4; i++) {
+      const ip = randomIp();
+      for (let j = 0; j < 5; j++) await t.verify(phone, wrongCode(code), ip);
+    }
+
+    // The real user, from their own IP, is refused while the window lasts...
+    const user = randomIp();
+    t.clock.advance(59 * MINUTE);
+    expect((await t.requestOtp(phone, user)).status).toBe(200);
+    let fresh = (await t.lastCode(phone)) ?? "";
+    expect((await t.verify(phone, fresh, user)).status).toBe(429);
+
+    // ...and signs in once the hour has passed.
+    t.clock.advance(2 * MINUTE);
+    expect((await t.requestOtp(phone, user)).status).toBe(200);
+    fresh = (await t.lastCode(phone)) ?? "";
+    expect((await t.verify(phone, fresh, user)).status).toBe(200);
+  });
 });
 
 describe("send limits", () => {
@@ -178,6 +201,18 @@ describe("send limits", () => {
       t.clock.advance(31 * SECOND);
     }
     expect((await t.requestOtp(phone, ip)).status).toBe(429);
+  });
+
+  it("caps sends to one phone at 30 an hour across IPs, then allows them again", async () => {
+    const phone = await registeredPhone();
+    for (let i = 0; i < 30; i++) {
+      expect((await t.requestOtp(phone, randomIp())).status).toBe(200);
+      t.clock.advance(31 * SECOND);
+    }
+    expect((await t.requestOtp(phone, randomIp())).status).toBe(429);
+
+    t.clock.advance(45 * MINUTE);
+    expect((await t.requestOtp(phone, randomIp())).status).toBe(200);
   });
 
   it("limits one IP across different phones", async () => {

@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { EnvError, parseEnv } from "../src/config/env.js";
 import { createTestApp, type TestApp } from "./helpers/app.js";
 import { FailingQueryController } from "./helpers/test-controllers.js";
 
@@ -56,5 +57,38 @@ describe("startup configuration", () => {
     expect(result.stderr).toContain("DATABASE_URL");
     expect(result.stderr).not.toContain("a-secret-value-that-must-not-print");
     expect(result.stderr).not.toContain("postgresql://");
+  });
+});
+
+describe("TRUST_PROXY", () => {
+  // Made-up values that satisfy every other rule.
+  const base = {
+    DATABASE_URL: "postgresql://user:pass@localhost:5432/db",
+    REDIS_URL: "redis://localhost:6379",
+    JWT_SECRET: "x".repeat(32),
+    JWT_ISSUER: "issuer",
+    JWT_AUDIENCE: "audience",
+    OTP_PEPPER: "y".repeat(32),
+    PHONE_HASH_PEPPER: "z".repeat(32),
+    WEB_ORIGIN: "http://localhost:3000",
+    API_PORT: "4000",
+  };
+
+  it.each(["local", "test"])("defaults to loopback when APP_ENV is %s", (appEnv) => {
+    expect(parseEnv({ ...base, APP_ENV: appEnv }).TRUST_PROXY).toBe("loopback");
+  });
+
+  it.each(["staging", "production"])("must be set explicitly when APP_ENV is %s", (appEnv) => {
+    let thrown: unknown;
+    try {
+      parseEnv({ ...base, APP_ENV: appEnv });
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(EnvError);
+    expect((thrown as EnvError).variables).toEqual(["TRUST_PROXY"]);
+    expect(parseEnv({ ...base, APP_ENV: appEnv, TRUST_PROXY: "10.0.0.0/8" }).TRUST_PROXY).toBe(
+      "10.0.0.0/8",
+    );
   });
 });

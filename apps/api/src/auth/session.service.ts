@@ -307,6 +307,30 @@ export class SessionService {
     });
   }
 
+  /**
+   * The live session a refresh token belongs to: its current token, or the one
+   * it replaced if that rotation is still inside the grace window. Used to sign
+   * out when the access token has already expired. Never rotates or revokes.
+   */
+  async sessionForRefreshToken(
+    refreshToken: string,
+  ): Promise<{ userId: string; sessionId: string } | null> {
+    const now = this.clock.now();
+    const hash = hashToken(refreshToken);
+    return this.db.withSystem("auth", async (sys) => {
+      const current = await sys.session.findUnique({ where: { refreshTokenHash: hash } });
+      if (current) {
+        return current.revokedAt ? null : { userId: current.userId, sessionId: current.id };
+      }
+      const previous = await sys.session.findFirst({ where: { previousRefreshTokenHash: hash } });
+      const inGrace =
+        previous?.rotatedAt != null &&
+        now.getTime() - previous.rotatedAt.getTime() <= REFRESH_GRACE_MS;
+      if (!previous || !inGrace || previous.revokedAt) return null;
+      return { userId: previous.userId, sessionId: previous.id };
+    });
+  }
+
   /** Ends this session. Signing out of an active organisation is audited there. */
   async logout(userId: string, sessionId: string, meta: RequestMeta): Promise<void> {
     const now = this.clock.now();

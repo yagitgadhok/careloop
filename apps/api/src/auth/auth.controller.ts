@@ -17,6 +17,7 @@ import { signedInOrganisations } from "../common/auth.guard.js";
 import { contextOf, type RequestContext } from "../common/request-context.js";
 import { SECURITY_KEYS } from "../infra/tokens.js";
 import {
+  ACCESS_COOKIE,
   clearAuthCookies,
   readCookie,
   REFRESH_COOKIE,
@@ -26,7 +27,7 @@ import {
 } from "./cookies.js";
 import { OtpService } from "./otp.service.js";
 import { SessionService, type RequestMeta } from "./session.service.js";
-import { ACCESS_TOKEN_TTL_MS } from "./token-verifier.js";
+import { ACCESS_TOKEN_TTL_MS, TokenVerifier } from "./token-verifier.js";
 
 interface AuthRequest extends IncomingMessage {
   /** Client IP, honouring the configured trusted proxies. */
@@ -46,6 +47,7 @@ export class AuthController {
     @Inject(OtpService) private readonly otp: OtpService,
     @Inject(SessionService) private readonly sessions: SessionService,
     @Inject(SECURITY_KEYS) private readonly keys: SecurityKeys,
+    @Inject(TokenVerifier) private readonly tokens: TokenVerifier,
   ) {}
 
   private meta(req: AuthRequest): RequestMeta {
@@ -146,17 +148,39 @@ export class AuthController {
     return { ok: true };
   }
 
-  @SessionOnly()
+  /**
+   * Signs out with whatever the browser still holds: the session named by a
+   * valid access token, otherwise the one the refresh cookie belongs to (so
+   * sign-out works after the access token expired). Always clears both
+   * cookies, and answers 200 even when no session was found.
+   */
+  @Public()
   @Post("logout")
   @HttpCode(200)
   async logout(
     @Req() req: AuthRequest,
     @Res({ passthrough: true }) res: CookieResponse,
   ): Promise<OkResponse> {
-    const { userId, sessionId } = this.signedIn(req);
-    await this.sessions.logout(userId, sessionId, this.meta(req));
-    clearAuthCookies(res);
+    try {
+      const target = await this.sessionToEnd(req);
+      if (target) await this.sessions.logout(target.userId, target.sessionId, this.meta(req));
+    } finally {
+      clearAuthCookies(res);
+    }
     return { ok: true };
+  }
+
+  private async sessionToEnd(
+    req: AuthRequest,
+  ): Promise<{ userId: string; sessionId: string } | null> {
+    const access = readCookie(req, ACCESS_COOKIE);
+    if (access) {
+      const claims = await this.tokens.verify(access).catch(() => null);
+      const state = claims ? await this.sessions.authenticate(claims) : null;
+      if (state?.status === "live") return { userId: state.userId, sessionId: state.sessionId };
+    }
+    const refresh = readCookie(req, REFRESH_COOKIE);
+    return refresh ? this.sessions.sessionForRefreshToken(refresh) : null;
   }
 
   @SessionOnly()
