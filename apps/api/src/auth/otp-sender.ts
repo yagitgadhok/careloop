@@ -12,17 +12,11 @@ export interface OtpSender {
 
 export const OTP_SENDER = Symbol("OTP_SENDER");
 
-/** Throws unless APP_ENV allows a development sender. */
-export function assertDevelopmentSender(env: Pick<Env, "APP_ENV">, name: string): void {
-  if (env.APP_ENV !== "local" && env.APP_ENV !== "test") {
-    throw new Error(`${name} can only run when APP_ENV is local or test`);
-  }
-}
-
 /**
- * Picks the sender for this environment at start-up. Staging and production
- * have no SMS sender yet (DLT registration is pending), so the API refuses to
- * start there rather than silently dropping codes.
+ * Picks the sender for this environment at start-up. Only the development
+ * senders exist; an SMS sender for staging and production needs a
+ * DLT-registered template first. Anywhere else the API refuses to start
+ * rather than silently dropping codes.
  */
 export function createOtpSender(
   env: Pick<Env, "APP_ENV">,

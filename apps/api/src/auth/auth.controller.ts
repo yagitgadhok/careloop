@@ -13,6 +13,7 @@ import {
 } from "@careloop/shared/schemas";
 import { AppError } from "../common/app-error.js";
 import { Public, SessionOnly } from "../common/auth.decorators.js";
+import { signedInOrganisations } from "../common/auth.guard.js";
 import { contextOf, type RequestContext } from "../common/request-context.js";
 import { SECURITY_KEYS } from "../infra/tokens.js";
 import {
@@ -92,8 +93,10 @@ export class AuthController {
   @SessionOnly()
   @Get("session")
   async session(@Req() req: AuthRequest): Promise<SessionResponse> {
-    const { userId, sessionId } = this.signedIn(req);
-    return this.sessions.describe(userId, sessionId);
+    const { userId, context } = this.signedIn(req);
+    const organisations = signedInOrganisations(req);
+    if (!organisations) throw new AppError(ErrorCode.unauthenticated);
+    return this.sessions.describe(userId, organisations, context.organisationId);
   }
 
   @SessionOnly()

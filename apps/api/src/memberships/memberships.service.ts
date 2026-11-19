@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { audit, type Db, type TenantContext, type TenantTx } from "@careloop/db";
+import { audit, upsertUserByPhone, type Db, type TenantContext, type TenantTx } from "@careloop/db";
 import { ErrorCode } from "@careloop/shared/errors";
 import type { Membership, MembershipList, Role } from "@careloop/shared/schemas";
 import { AppError } from "../common/app-error.js";
@@ -112,9 +112,7 @@ export class MembershipsService {
   async invite(actor: Actor, phone: string, roles: Role[]): Promise<Membership> {
     // Sign-in looks people up by phone before any organisation is known, so the
     // user row is global; it is created here on the same reviewed path.
-    const user = await this.db.withSystem("auth", (sys) =>
-      sys.user.upsert({ where: { phone }, create: { phone }, update: {} }),
-    );
+    const user = await this.db.withSystem("auth", (sys) => upsertUserByPhone(sys, phone));
 
     return this.db.withTenant(actor.organisationId, async (ctx) => {
       const { tx, organisationId } = ctx;

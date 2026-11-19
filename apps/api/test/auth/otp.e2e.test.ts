@@ -63,13 +63,16 @@ describe("OTP codes", () => {
     const ip = randomIp();
     await t.requestOtp(phone, ip);
     const first = (await t.lastCode(phone)) ?? "";
-    t.clock.advance(31 * SECOND);
-    await t.requestOtp(phone, ip);
-    const second = (await t.lastCode(phone)) ?? "";
-
-    if (first !== second) {
-      expect((await t.verify(phone, first, ip)).body.code).toBe("invalid_code");
+    // A resend can draw the same six digits by chance; resend until it doesn't.
+    let second = first;
+    for (let resends = 0; second === first && resends < 5; resends++) {
+      t.clock.advance(31 * SECOND);
+      await t.requestOtp(phone, ip);
+      second = (await t.lastCode(phone)) ?? "";
     }
+    expect(second).not.toBe(first);
+
+    expect((await t.verify(phone, first, ip)).body.code).toBe("invalid_code");
     expect((await t.verify(phone, second, ip)).status).toBe(200);
   });
 });

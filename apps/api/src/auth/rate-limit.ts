@@ -1,6 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type { SecurityKeys } from "@careloop/db";
-import type { Redis } from "ioredis";
+import type { Redis, Result } from "ioredis";
 import type { Clock } from "../common/clock.js";
 import { CLOCK, REDIS, SECURITY_KEYS } from "../infra/tokens.js";
 
@@ -16,6 +16,17 @@ export const LIMITS = {
   lockoutMs: 15 * 60 * 1000,
   dayMs: 24 * 60 * 60 * 1000,
 } as const;
+
+type ScriptArg = string | number;
+
+// Typings for the scripts registered with defineCommand below.
+declare module "ioredis" {
+  interface RedisCommander<Context> {
+    otpTrySend(...keysThenArgs: ScriptArg[]): Result<unknown, Context>;
+    otpTryAttempt(...keysThenArgs: ScriptArg[]): Result<unknown, Context>;
+    otpSucceeded(...keysThenArgs: ScriptArg[]): Result<unknown, Context>;
+  }
+}
 
 // Times that matter to a decision (resend gap, lockout end) are stored as
 // values and compared with the injected clock. Redis TTLs only clean up keys
@@ -84,14 +95,17 @@ export class RateLimiter {
     @Inject(REDIS) private readonly redis: Redis,
     @Inject(SECURITY_KEYS) private readonly keys: SecurityKeys,
     @Inject(CLOCK) private readonly clock: Clock,
-  ) {}
+  ) {
+    // Registered once: ioredis sends EVALSHA and falls back to EVAL when Redis lacks the script.
+    redis.defineCommand("otpTrySend", { numberOfKeys: 4, lua: SEND_SCRIPT });
+    redis.defineCommand("otpTryAttempt", { numberOfKeys: 4, lua: ATTEMPT_SCRIPT });
+    redis.defineCommand("otpSucceeded", { numberOfKeys: 3, lua: SUCCESS_SCRIPT });
+  }
 
   /** Counts a code request and, when allowed, the send it leads to. */
   async trySend(phoneHash: string, ipHash: string): Promise<SendDecision> {
     const { otp } = this.keys;
-    const result = await this.redis.eval(
-      SEND_SCRIPT,
-      4,
+    const result = await this.redis.otpTrySend(
       otp.ipRequests(ipHash),
       otp.dailySends(phoneHash, ipHash),
       otp.phoneSends(phoneHash),
@@ -110,9 +124,7 @@ export class RateLimiter {
   /** Reserves a verify attempt, counted as a failure until `succeeded` is called. */
   async tryAttempt(phoneHash: string, ipHash: string): Promise<AttemptDecision> {
     const { otp } = this.keys;
-    const result = await this.redis.eval(
-      ATTEMPT_SCRIPT,
-      4,
+    const result = await this.redis.otpTryAttempt(
       otp.ipRequests(ipHash),
       otp.failures(phoneHash, ipHash),
       otp.lockout(phoneHash, ipHash),
@@ -131,9 +143,7 @@ export class RateLimiter {
   /** Clears the pair's failures and lockout, and gives back the reserved backstop attempt. */
   async succeeded(phoneHash: string, ipHash: string): Promise<void> {
     const { otp } = this.keys;
-    await this.redis.eval(
-      SUCCESS_SCRIPT,
-      3,
+    await this.redis.otpSucceeded(
       otp.failures(phoneHash, ipHash),
       otp.lockout(phoneHash, ipHash),
       otp.phoneFailures(phoneHash),

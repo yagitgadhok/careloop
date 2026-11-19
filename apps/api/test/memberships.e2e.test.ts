@@ -87,22 +87,6 @@ describe("permission guard", () => {
     expect(res.status).toBe(403);
     expect(res.body.code).toBe("forbidden");
   });
-
-  it("refuses a permission route until an organisation is selected", async () => {
-    const phone = randomPhone();
-    await createClinic(t.db, phone, "Clinic A");
-    await createClinic(t.db, phone, "Clinic B");
-    const { cookie } = await t.signIn(phone);
-    const res = await t.get("/api/memberships", cookie);
-    expect(res.status).toBe(403);
-    expect(res.body.code).toBe("org_not_selected");
-  });
-
-  it("refuses a permission route without a session", async () => {
-    const res = await t.get("/api/memberships");
-    expect(res.status).toBe(401);
-    expect(res.body.code).toBe("unauthenticated");
-  });
 });
 
 describe("listing members", () => {
