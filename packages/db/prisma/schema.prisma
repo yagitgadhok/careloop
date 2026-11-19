@@ -1,9 +1,12 @@
 // CareLoop database schema.
 //
-// Tenancy: every table with an organisation_id column is a tenant table with
-// forced row-level security (see the rls migration). The global tables are
-// app_user, otp_challenge, session, security_event and organisation, which
-// has its own id-based policy. Row-level security, roles, grants and the
+// Tenancy: tables with an organisation_id column are tenant tables with
+// forced row-level security (see the rls migration), with one deliberate
+// exception: security_event is global. It records sign-in and session events
+// that happen before any organisation is chosen, so its organisation_id is
+// optional context, not a tenant key. The global tables are app_user,
+// otp_challenge, session, security_event and organisation, which has its own
+// id-based policy. Row-level security, roles, grants and the
 // append-only triggers live in hand-written SQL migrations because Prisma
 // does not model them; foreign keys live here so Prisma never drops them.
 

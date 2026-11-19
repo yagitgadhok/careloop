@@ -24,7 +24,9 @@ describe("security keys", () => {
       keys.otp.dailySends(phoneHash, ipHash),
       keys.otp.resendGap(phoneHash),
       keys.otp.phoneFailures(phoneHash),
+      keys.otp.phoneFailuresWindow(phoneHash),
       keys.otp.phoneSends(phoneHash),
+      keys.otp.phoneSendsWindow(phoneHash),
       keys.otp.ipRequests(ipHash),
     ];
     for (const value of all) {

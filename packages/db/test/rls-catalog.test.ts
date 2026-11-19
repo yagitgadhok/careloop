@@ -31,8 +31,11 @@ interface TableInfo {
   policy_count: number;
 }
 
-async function tableInfo(): Promise<TableInfo[]> {
-  const { rows } = await pool.query<TableInfo>(`
+/** Pool or a single client, so a test can read the catalogue inside its own transaction. */
+type Queryable = Pick<pg.Pool, "query">;
+
+async function tableInfo(db: Queryable = pool): Promise<TableInfo[]> {
+  const { rows } = await db.query<TableInfo>(`
     SELECT c.relname AS table,
            EXISTS (
              SELECT 1 FROM pg_attribute a
@@ -49,16 +52,23 @@ async function tableInfo(): Promise<TableInfo[]> {
   return rows;
 }
 
+/** True when a table meets the tenant-table rule: organisation_id, forced RLS, a policy. */
+function isGuardedTenantTable(t: TableInfo): boolean {
+  return t.has_org_column && t.rls_forced && t.policy_count > 0;
+}
+
+/** Tables outside the global allowlist that break the tenant-table rule. */
+function offenders(tables: TableInfo[]): string[] {
+  return tables
+    .filter((t) => !GLOBAL_TABLES.has(t.table) && !isGuardedTenantTable(t))
+    .map((t) => t.table);
+}
+
 describe("row-level security catalogue", () => {
   it("forces RLS with a policy on every tenant table", async () => {
-    const tenantTables = (await tableInfo()).filter((t) => !GLOBAL_TABLES.has(t.table));
-    expect(tenantTables.length).toBeGreaterThan(0);
-    for (const t of tenantTables) {
-      expect({
-        table: t.table,
-        ok: t.has_org_column && t.rls_forced && t.policy_count > 0,
-      }).toEqual({ table: t.table, ok: true });
-    }
+    const tables = await tableInfo();
+    expect(tables.filter((t) => !GLOBAL_TABLES.has(t.table)).length).toBeGreaterThan(0);
+    expect(offenders(tables)).toEqual([]);
   });
 
   it("forces RLS with id-based policies on organisation", async () => {
@@ -67,17 +77,19 @@ describe("row-level security catalogue", () => {
     expect(org?.policy_count).toBeGreaterThan(0);
   });
 
-  it("flags a tenant table that has no policy", async () => {
+  it("flags a tenant table that has no policy, and stops once it has forced RLS and a policy", async () => {
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
       await client.query("CREATE TABLE catalogue_probe (id uuid, organisation_id uuid)");
-      const { rows } = await client.query<TableInfo>(`
-        SELECT relforcerowsecurity AS rls_forced,
-               (SELECT count(*)::int FROM pg_policy WHERE polrelid = 'catalogue_probe'::regclass) AS policy_count
-        FROM pg_class WHERE relname = 'catalogue_probe'
-      `);
-      expect(rows[0]).toMatchObject({ rls_forced: false, policy_count: 0 });
+      expect(offenders(await tableInfo(client))).toContain("catalogue_probe");
+
+      await client.query("ALTER TABLE catalogue_probe ENABLE ROW LEVEL SECURITY");
+      await client.query("ALTER TABLE catalogue_probe FORCE ROW LEVEL SECURITY");
+      expect(offenders(await tableInfo(client))).toContain("catalogue_probe");
+
+      await client.query("CREATE POLICY catalogue_probe_policy ON catalogue_probe USING (true)");
+      expect(offenders(await tableInfo(client))).not.toContain("catalogue_probe");
     } finally {
       await client.query("ROLLBACK");
       client.release();

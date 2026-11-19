@@ -12,13 +12,13 @@ REVOKE ALL ON SCHEMA app FROM PUBLIC;
 -- The organisation the current transaction acts for, set with
 -- set_config('app.organisation_id', <uuid>, true). A pooled connection returns
 -- '' once a transaction-local setting has been used, hence NULLIF.
-CREATE FUNCTION app.current_org() RETURNS uuid
+CREATE OR REPLACE FUNCTION app.current_org() RETURNS uuid
   LANGUAGE sql STABLE
   AS $$ SELECT NULLIF(current_setting('app.organisation_id', true), '')::uuid $$;
 
 -- One place that enables and forces RLS with the standard tenant policy, so
 -- every tenant table, now and in later migrations, gets identical rules.
-CREATE FUNCTION app.enable_tenant_rls(tbl regclass) RETURNS void
+CREATE OR REPLACE FUNCTION app.enable_tenant_rls(tbl regclass) RETURNS void
   LANGUAGE plpgsql
   AS $$
 BEGIN
@@ -57,7 +57,7 @@ CREATE POLICY organisation_self ON public.organisation
 CREATE POLICY owner_read ON public.membership FOR SELECT TO careloop_owner USING (true);
 CREATE POLICY owner_read ON public.organisation FOR SELECT TO careloop_owner USING (true);
 
-CREATE FUNCTION app.user_memberships(p_user_id uuid)
+CREATE OR REPLACE FUNCTION app.user_memberships(p_user_id uuid)
   RETURNS TABLE (
     organisation_id uuid,
     organisation_name text,
@@ -79,7 +79,7 @@ CREATE FUNCTION app.user_memberships(p_user_id uuid)
 -- Membership integrity
 -- ---------------------------------------------------------------------------
 
-CREATE FUNCTION app.roles_are_distinct(r role[]) RETURNS boolean
+CREATE OR REPLACE FUNCTION app.roles_are_distinct(r role[]) RETURNS boolean
   LANGUAGE sql IMMUTABLE
   AS $$ SELECT cardinality(r) = (SELECT count(DISTINCT x) FROM unnest(r) AS x) $$;
 
@@ -91,7 +91,7 @@ ALTER TABLE public.membership
 -- Append-only audit and security events
 -- ---------------------------------------------------------------------------
 
-CREATE FUNCTION app.forbid_modification() RETURNS trigger
+CREATE OR REPLACE FUNCTION app.forbid_modification() RETURNS trigger
   LANGUAGE plpgsql
   AS $$
 BEGIN

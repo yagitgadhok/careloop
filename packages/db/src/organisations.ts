@@ -26,8 +26,10 @@ export interface CreateOrganisationResult {
 
 /**
  * Creates (or re-confirms) an organisation, its first location and its owner's
- * membership. Safe to re-run with the same organisation id: nothing is
- * duplicated and the audit row is written only when something was inserted.
+ * membership. Safe to re-run with the same organisation id, name and owner:
+ * nothing is duplicated and the audit row is written only when something was
+ * inserted. A re-run with a different name, or with a different owner while
+ * the organisation already has an active owner, throws and changes nothing.
  */
 export async function createOrganisation(
   db: Db,
@@ -45,7 +47,23 @@ export async function createOrganisation(
     let created = false;
 
     let organisation = await tx.organisation.findUnique({ where: { id: organisationId } });
-    if (!organisation) {
+    if (organisation) {
+      // A re-run must describe the same clinic; owners are added through the members API.
+      const otherOwner = await tx.membership.findFirst({
+        where: {
+          organisationId,
+          status: "active",
+          roles: { has: "owner" },
+          userId: { not: owner.id },
+        },
+      });
+      const ownerAlready = await tx.membership.findFirst({
+        where: { organisationId, status: "active", roles: { has: "owner" }, userId: owner.id },
+      });
+      if (organisation.name !== input.name || (otherOwner && !ownerAlready)) {
+        throw new Error("Organisation already exists with different details");
+      }
+    } else {
       organisation = await tx.organisation.create({
         data: { id: organisationId, name: input.name },
       });
