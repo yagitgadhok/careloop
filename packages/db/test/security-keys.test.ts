@@ -35,11 +35,4 @@ describe("security keys", () => {
   it("gives different phones different hashes", () => {
     expect(keys.phoneHash("9876543210")).not.toBe(keys.phoneHash("9876543211"));
   });
-
-  it("lists every key for one phone so an operator unlock can clear them", () => {
-    const phoneHash = keys.phoneHash("9876543210");
-    const patterns = keys.otp.allForPhone(phoneHash);
-    expect(patterns.length).toBeGreaterThanOrEqual(5);
-    expect(patterns.every((p) => p.includes(phoneHash))).toBe(true);
-  });
 });

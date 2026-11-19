@@ -39,6 +39,19 @@ export class ApiError extends Error {
   }
 }
 
+/** True when the API refused the call because the session is missing, expired or revoked. */
+export function isSessionEnded(error: unknown): error is ApiError {
+  return (
+    error instanceof ApiError &&
+    (error.code === ErrorCode.unauthenticated || error.code === ErrorCode.session_revoked)
+  );
+}
+
+/** The API error code, or `internal_error` for anything that is not an API failure. */
+export function errorCodeOf(error: unknown): ErrorCode {
+  return error instanceof ApiError ? error.code : ErrorCode.internal_error;
+}
+
 export interface ApiClientOptions {
   fetch: FetchLike;
   /** Prefix for every path. Empty for same-origin browser calls. */

@@ -1,12 +1,12 @@
 import type { Role } from "./schemas/common.js";
 
-/** Every permission an API route can declare in this milestone. */
+/** Every core permission an API route can declare. */
 export const PERMISSIONS = ["org.read", "members.read", "members.manage"] as const;
 export type CorePermission = (typeof PERMISSIONS)[number];
 
 /**
- * Reserved for restricted visit sections, which the API returns only to
- * permitted roles. No role holds one yet, so every check against them is denied.
+ * Restricted visit sections, which the API returns only to permitted roles.
+ * A role holds one only if `ROLE_PERMISSIONS` lists it; any other check is denied.
  */
 export type VisitSectionPermission = `visit.section.${string}`;
 

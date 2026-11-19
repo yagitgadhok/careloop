@@ -2,6 +2,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { createPrismaClient, type DbOptions, type PrismaClient } from "./client.js";
 import type { Prisma } from "./generated/prisma/client.js";
 import type { MembershipStatus, OrganisationStatus, Role } from "./generated/prisma/enums.js";
+import { UUID_PATTERN } from "./uuid.js";
 
 /** A transaction client scoped to one organisation by row-level security. */
 export type TenantTx = Prisma.TransactionClient;
@@ -20,6 +21,7 @@ export type SystemReason = "auth" | "operator" | "seed";
 
 const SYSTEM_MODELS = ["user", "otpChallenge", "session", "securityEvent"] as const;
 type SystemModel = (typeof SYSTEM_MODELS)[number];
+const ALLOWED_SYSTEM_MODELS: ReadonlySet<string> = new Set(SYSTEM_MODELS);
 
 export interface UserMembershipRow {
   organisationId: string;
@@ -38,10 +40,11 @@ export type SystemTx = Pick<TenantTx, SystemModel> & {
 export interface Db {
   withTenant<T>(organisationId: string, fn: (ctx: TenantContext) => Promise<T>): Promise<T>;
   withSystem<T>(reason: SystemReason, fn: (sys: SystemTx) => Promise<T>): Promise<T>;
+  /** Checks the database answers. Reads no tenant or system rows. */
+  ping(): Promise<void>;
   disconnect(): Promise<void>;
 }
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DEFAULT_TIMEOUT_MS = 10_000;
 
 interface ActiveScope {
@@ -58,7 +61,7 @@ export function createDb(options: DbOptions): Db {
     organisationId: string,
     fn: (ctx: TenantContext) => Promise<T>,
   ): Promise<T> {
-    if (!UUID.test(organisationId)) {
+    if (!UUID_PATTERN.test(organisationId)) {
       throw new Error("withTenant needs an organisation UUID");
     }
     const active = scope.getStore();
@@ -95,7 +98,6 @@ export function createDb(options: DbOptions): Db {
     return scope.run({ kind: "system" }, () =>
       prisma.$transaction(
         async (tx) => {
-          const allowed = new Set<string>(SYSTEM_MODELS);
           const userMemberships = async (userId: string): Promise<UserMembershipRow[]> => {
             // node-pg can't parse arrays of a custom enum, so roles are read as text[].
             const rows = await tx.$queryRaw<
@@ -119,7 +121,7 @@ export function createDb(options: DbOptions): Db {
           const sys = new Proxy({} as SystemTx, {
             get(_target, property) {
               if (property === "userMemberships") return userMemberships;
-              if (typeof property === "string" && allowed.has(property)) {
+              if (typeof property === "string" && ALLOWED_SYSTEM_MODELS.has(property)) {
                 return tx[property as SystemModel];
               }
               throw new Error(
@@ -137,6 +139,9 @@ export function createDb(options: DbOptions): Db {
   return {
     withTenant,
     withSystem,
+    ping: async () => {
+      await prisma.$queryRaw`SELECT 1`;
+    },
     disconnect: () => prisma.$disconnect(),
   };
 }

@@ -33,6 +33,10 @@
     "./api": {
       "types": "./dist/api/index.d.ts",
       "default": "./dist/api/index.js"
+    },
+    "./auth-cookies": {
+      "types": "./dist/auth-cookies.d.ts",
+      "default": "./dist/auth-cookies.js"
     }
   },
   "files": [

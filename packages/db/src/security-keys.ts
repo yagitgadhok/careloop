@@ -37,6 +37,8 @@ export function createSecurityKeys({ phonePepper }: SecurityKeyOptions) {
     phoneSends: (phone: string) => `otp:phonesends:${phone}`,
     /** Sign-in requests from one IP in the current hour. */
     ipRequests: (ip: string) => `otp:ip:${ip}`,
+    /** Where the test sender leaves the latest code for one phone (tests only). */
+    testCode: (phone: string) => `test:otp:${phone}`,
     /** Key patterns covering every counter for one phone, for an operator unlock. */
     allForPhone: (phone: string) => [
       `otp:fail:${phone}:*`,

@@ -23,15 +23,21 @@ export function toIndianMobile(input: string): string | null {
   return INDIAN_MOBILE.test(digits) ? digits : null;
 }
 
+/** Normalises user input to the stored `+91XXXXXXXXXX` form, or null if invalid. */
+export function toE164(input: string): string | null {
+  const national = toIndianMobile(input);
+  return national === null ? null : `+91${national}`;
+}
+
 /** An Indian mobile number, normalised to E.164 (`+91XXXXXXXXXX`). */
 export const phoneSchema = z.string().transform((input, ctx) => {
-  const national = toIndianMobile(input);
-  if (national === null) {
+  const phone = toE164(input);
+  if (phone === null) {
     // The message is a code, never the input, so it is safe to return to the client.
     ctx.addIssue({ code: "custom", message: INVALID_PHONE });
     return z.NEVER;
   }
-  return `+91${national}`;
+  return phone;
 });
 export type Phone = z.output<typeof phoneSchema>;
 
