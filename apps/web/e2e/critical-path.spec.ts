@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
-import { closeRedis, DEMO, signIn } from "./helpers/otp";
+import { closeRedis, DEMO, requestCode, signIn } from "./helpers/otp";
 
 // The first slice of the critical path: staff sign in and land in the right
 // clinic with the right navigation. Later milestones extend this file
@@ -45,4 +45,14 @@ test("the sign-in screen has no serious accessibility violations", async ({ page
     (v) => v.impact === "serious" || v.impact === "critical",
   );
   expect(serious.map((v) => v.id)).toEqual([]);
+});
+
+test("after a wrong code, focus returns to the first code cell", async ({ page }) => {
+  const code = await requestCode(page, DEMO.sunriseFrontDesk);
+  const wrong = String((Number(code) + 1) % 1_000_000).padStart(6, "0");
+  const first = page.getByLabel("Digit 1 of 6");
+  await first.pressSequentially(wrong);
+  await expect(page.getByText("That code is wrong or has expired.")).toBeVisible();
+  await expect(first).toBeEnabled();
+  await expect(first).toBeFocused();
 });

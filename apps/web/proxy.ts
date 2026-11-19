@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { apiRoutes } from "@careloop/shared/api";
 import { sessionResponseSchema, type SessionResponse } from "@careloop/shared/schemas";
-import { ACCESS_COOKIE, apiOrigin, SIGNED_OUT_PATH } from "./lib/api/config";
+import { ACCESS_COOKIE, apiOrigin, REFRESH_COOKIE, SIGNED_OUT_PATH } from "./lib/api/config";
 
 /** Pages anyone can open, signed in or not. */
 const PUBLIC_PATHS = ["/sign-in", "/dev"];
@@ -33,10 +33,19 @@ async function lookUpSession(cookie: string): Promise<SessionLookup> {
   return parsed.success ? { kind: "ok", session: parsed.data } : { kind: "unavailable" };
 }
 
-/** Rotates the tokens with the refresh cookie. Returns the API's Set-Cookie headers, or null. */
-async function refreshTokens(request: NextRequest, cookie: string): Promise<string[] | null> {
+type RefreshResult =
+  /** New tokens: the API's Set-Cookie headers. */
+  | { kind: "ok"; setCookies: string[] }
+  /** The API refused the refresh token (401 or 403): the session is over. */
+  | { kind: "rejected"; setCookies: string[] }
+  /** Network error, 5xx or 429: the session may still be fine. */
+  | { kind: "unavailable" };
+
+/** Rotates the tokens with the refresh cookie. */
+async function refreshTokens(request: NextRequest, cookie: string): Promise<RefreshResult> {
+  let response: Response;
   try {
-    const response = await fetch(apiOrigin() + apiRoutes.auth.refresh.path, {
+    response = await fetch(apiOrigin() + apiRoutes.auth.refresh.path, {
       method: apiRoutes.auth.refresh.method,
       headers: {
         accept: "application/json",
@@ -47,11 +56,14 @@ async function refreshTokens(request: NextRequest, cookie: string): Promise<stri
       },
       cache: "no-store",
     });
-    if (!response.ok) return null;
-    return response.headers.getSetCookie();
   } catch {
-    return null;
+    return { kind: "unavailable" };
   }
+  if (response.ok) return { kind: "ok", setCookies: response.headers.getSetCookie() };
+  if (response.status === 401 || response.status === 403) {
+    return { kind: "rejected", setCookies: response.headers.getSetCookie() };
+  }
+  return { kind: "unavailable" };
 }
 
 /** Applies Set-Cookie values to a Cookie header, so this request already uses the new tokens. */
@@ -79,20 +91,28 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
   if (matches(pathname, PUBLIC_PATHS)) return NextResponse.next();
 
-  if (!request.cookies.has(ACCESS_COOKIE)) return redirectTo(request, "/sign-in");
+  const hasAccess = request.cookies.has(ACCESS_COOKIE);
+  // The access cookie lapses after 15 minutes; the refresh cookie can still renew it.
+  if (!hasAccess && !request.cookies.has(REFRESH_COOKIE)) return redirectTo(request, "/sign-in");
 
   let cookie = request.headers.get("cookie") ?? "";
   let setCookies: string[] = [];
-  let lookup = await lookUpSession(cookie);
+  let lookup: SessionLookup = hasAccess ? await lookUpSession(cookie) : { kind: "unauthenticated" };
 
   // Server components can't set cookies, so the silent refresh happens here.
   if (lookup.kind === "unauthenticated") {
     const refreshed = await refreshTokens(request, cookie);
-    if (!refreshed) return redirectTo(request, SIGNED_OUT_PATH);
-    setCookies = refreshed;
-    cookie = mergeCookies(cookie, refreshed);
-    lookup = await lookUpSession(cookie);
-    if (lookup.kind === "unauthenticated") return redirectTo(request, SIGNED_OUT_PATH);
+    if (refreshed.kind === "rejected") {
+      return redirectTo(request, SIGNED_OUT_PATH, refreshed.setCookies);
+    }
+    if (refreshed.kind === "ok") {
+      setCookies = refreshed.setCookies;
+      cookie = mergeCookies(cookie, setCookies);
+      lookup = await lookUpSession(cookie);
+      if (lookup.kind === "unauthenticated") return redirectTo(request, SIGNED_OUT_PATH);
+    } else {
+      lookup = { kind: "unavailable" };
+    }
   }
 
   if (lookup.kind === "ok") {
@@ -103,7 +123,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
       return redirectTo(request, "/choose-clinic", setCookies);
     }
   }
-  // If the API is unreachable the page renders and shows its own error state.
+  // If the API is unreachable (lookup or refresh) the page renders and shows its own error state.
 
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("cookie", cookie);

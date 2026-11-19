@@ -39,6 +39,9 @@ export function SignInForm() {
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [secondsLeft, setSecondsLeft] = useState(0);
+  // The code cells are disabled while busy, which drops focus. Bumping this key
+  // remounts them once the form is idle again, so the first cell takes focus.
+  const [otpFocusKey, setOtpFocusKey] = useState(0);
   const resendAt = useRef(0);
 
   useEffect(() => {
@@ -68,6 +71,7 @@ export function SignInForm() {
       setProblem(problemFrom(error, "phone"));
     } finally {
       setBusy("idle");
+      setOtpFocusKey((key) => key + 1);
     }
   };
 
@@ -96,6 +100,7 @@ export function SignInForm() {
       setProblem(problemFrom(error, "code"));
       setCode("");
       setBusy("idle");
+      setOtpFocusKey((key) => key + 1);
     }
   };
 
@@ -169,6 +174,7 @@ export function SignInForm() {
       <fieldset className="flex flex-col gap-3">
         <legend className="mb-2 text-sm font-medium">{t("codeLabel")}</legend>
         <OtpInput
+          key={otpFocusKey}
           value={code}
           onChange={(value) => {
             setCode(value);

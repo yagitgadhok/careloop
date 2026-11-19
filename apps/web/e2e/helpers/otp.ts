@@ -34,13 +34,18 @@ async function readCode(phone: string): Promise<string> {
   return code ?? "";
 }
 
-/** Signs in through the real sign-in screen with a seeded phone. */
-export async function signIn(page: Page, phone: string): Promise<void> {
+/** Asks for a code on the real sign-in screen with a seeded phone; returns the code sent. */
+export async function requestCode(page: Page, phone: string): Promise<string> {
   await resetLimits(phone);
   await page.goto("/sign-in");
   await page.getByLabel("Mobile number").fill(phone);
   await page.getByRole("button", { name: "Send code" }).click();
-  const code = await readCode(phone);
+  return readCode(phone);
+}
+
+/** Signs in through the real sign-in screen with a seeded phone. */
+export async function signIn(page: Page, phone: string): Promise<void> {
+  const code = await requestCode(page, phone);
   // The form submits itself once all six digits are in.
   await page.getByLabel("Digit 1 of 6").pressSequentially(code);
   await page.waitForURL((url) => url.pathname !== "/sign-in");

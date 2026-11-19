@@ -1,5 +1,5 @@
-/** The API sets the auth cookies; the web only checks that the access cookie is present. */
-export { ACCESS_COOKIE } from "@careloop/shared/auth-cookies";
+/** The API sets the auth cookies; the web only checks which of them are present. */
+export { ACCESS_COOKIE, REFRESH_COOKIE } from "@careloop/shared/auth-cookies";
 
 /** Where server-side code reaches the API directly. */
 export function apiOrigin(): string {
