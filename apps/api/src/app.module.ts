@@ -4,12 +4,14 @@ import { AuthModule } from "./auth/auth.module.js";
 import { AuthGuard } from "./common/auth.guard.js";
 import { AppExceptionFilter } from "./common/exception.filter.js";
 import { OriginGuard } from "./common/origin.guard.js";
+import { PermissionsGuard } from "./common/permissions.guard.js";
 import { createValidationPipe } from "./common/validation.js";
 import { HealthModule } from "./health/health.module.js";
 import { InfraModule } from "./infra/infra.module.js";
+import { MembershipsModule } from "./memberships/memberships.module.js";
 
 @Module({
-  imports: [InfraModule, HealthModule, AuthModule],
+  imports: [InfraModule, HealthModule, AuthModule, MembershipsModule],
   providers: [
     { provide: APP_PIPE, useFactory: createValidationPipe },
     { provide: APP_FILTER, useClass: AppExceptionFilter },
@@ -17,6 +19,8 @@ import { InfraModule } from "./infra/infra.module.js";
     { provide: APP_GUARD, useClass: OriginGuard },
     // Then authentication: session, user status, live membership, active organisation.
     { provide: APP_GUARD, useClass: AuthGuard },
+    // Last, the declared permission against those live roles. Denies undeclared routes.
+    { provide: APP_GUARD, useClass: PermissionsGuard },
   ],
 })
 export class AppModule {}

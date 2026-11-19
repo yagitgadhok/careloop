@@ -2,6 +2,7 @@ import { Body, Controller, Get, HttpCode, Inject, Post } from "@nestjs/common";
 import type { Db } from "@careloop/db";
 import { requestOtpBodySchema } from "@careloop/shared/schemas";
 import { Public } from "../../src/common/auth.decorators.js";
+import { RequirePermission } from "../../src/common/permission.decorator.js";
 import { currentContext } from "../../src/common/request-context.js";
 import { DB } from "../../src/infra/tokens.js";
 
@@ -37,9 +38,10 @@ export class FailingQueryController {
 }
 
 /**
- * An organisation-scoped route (no auth decorator): reports the organisation
+ * An organisation-scoped route every role may call: reports the organisation
  * and roles the server resolved for the request.
  */
+@RequirePermission("org.read")
 @Controller("test/whoami")
 export class WhoAmIController {
   private describe() {
