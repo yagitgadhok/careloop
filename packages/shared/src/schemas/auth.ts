@@ -36,3 +36,20 @@ export const selectOrgResponseSchema = z.object({
   roles: z.array(roleSchema),
 });
 export type SelectOrgResponse = z.infer<typeof selectOrgResponseSchema>;
+
+/**
+ * The signed-in user's current session: every clinic they can work in, and
+ * the active one (null until they pick). Roles come from the live membership.
+ */
+export const sessionResponseSchema = z.object({
+  userId: uuidSchema,
+  organisations: z.array(orgChoiceSchema),
+  active: z
+    .object({
+      organisationId: uuidSchema,
+      organisationName: z.string(),
+      roles: z.array(roleSchema),
+    })
+    .nullable(),
+});
+export type SessionResponse = z.infer<typeof sessionResponseSchema>;
