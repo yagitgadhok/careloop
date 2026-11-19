@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
 import {
   Toast,
   ToastDescription,
@@ -33,10 +33,8 @@ export function Toaster({ children }: { children: ReactNode }) {
     setToasts((current) => current.filter((toast) => toast.id !== id));
   }, []);
 
-  const value = useMemo(() => show, [show]);
-
   return (
-    <ToastContext.Provider value={value}>
+    <ToastContext.Provider value={show}>
       <ToastProvider duration={5000}>
         {children}
         {toasts.map((toast) => (

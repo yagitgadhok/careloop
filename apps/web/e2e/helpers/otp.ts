@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
-import { createSecurityKeys } from "@careloop/db";
+import { createSecurityKeys, deleteOtpCounters } from "@careloop/db";
 import { expect, type Page } from "@playwright/test";
 import { Redis } from "ioredis";
 
@@ -20,16 +20,13 @@ export const DEMO = {
 /** Clears sign-in counters so repeated local runs never hit the daily limits. */
 async function resetLimits(phone: string): Promise<void> {
   const phoneHash = keys.phoneHash(phone);
-  for (const pattern of keys.otp.allForPhone(phoneHash)) {
-    const matches = pattern.includes("*") ? await redis.keys(pattern) : [pattern];
-    if (matches.length) await redis.del(...matches);
-  }
-  await redis.del(`test:otp:${phoneHash}`);
+  await deleteOtpCounters(redis, keys, phoneHash);
+  await redis.del(keys.otp.testCode(phoneHash));
 }
 
 /** Reads the code the API's test sender stored for this phone. */
 async function readCode(phone: string): Promise<string> {
-  const key = `test:otp:${keys.phoneHash(phone)}`;
+  const key = keys.otp.testCode(keys.phoneHash(phone));
   let code: string | null = null;
   await expect
     .poll(async () => (code = await redis.get(key)), { timeout: 10_000 })

@@ -6,6 +6,7 @@ import {
   ApiError,
   apiRoutes,
   createApiClient,
+  isSessionEnded,
   type RouteDef,
   type RouteInput,
   type RouteOutput,
@@ -80,13 +81,7 @@ export function useApi(): BrowserApi {
             try {
               return await client.request(route, prepared);
             } catch (retryError) {
-              if (
-                retryError instanceof ApiError &&
-                (retryError.code === ErrorCode.unauthenticated ||
-                  retryError.code === ErrorCode.session_revoked)
-              ) {
-                return sessionLost();
-              }
+              if (isSessionEnded(retryError)) return sessionLost();
               throw retryError;
             }
           }

@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Building2, ChevronRight, Loader2 } from "lucide-react";
-import { ApiError, apiRoutes } from "@careloop/shared/api";
-import { ErrorCode } from "@careloop/shared/errors";
+import { apiRoutes, errorCodeOf } from "@careloop/shared/api";
+import type { ErrorCode } from "@careloop/shared/errors";
 import type { OrgChoice } from "@careloop/shared/schemas";
 import { Badge } from "@careloop/ui/components/badge";
 import { FieldError } from "@careloop/ui/components/input";
@@ -32,7 +32,7 @@ export function ClinicPicker({
       await api.request(apiRoutes.auth.selectOrg, { body: { organisationId } });
       window.location.assign("/");
     } catch (error) {
-      setProblem(error instanceof ApiError ? error.code : ErrorCode.internal_error);
+      setProblem(errorCodeOf(error));
       setChoosing(null);
     }
   };

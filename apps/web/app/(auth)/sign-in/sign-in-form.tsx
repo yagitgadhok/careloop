@@ -3,15 +3,14 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import { ArrowLeft, ShieldCheck } from "lucide-react";
-import { ApiError, apiRoutes } from "@careloop/shared/api";
+import { apiRoutes, errorCodeOf } from "@careloop/shared/api";
 import { ErrorCode } from "@careloop/shared/errors";
-import { toIndianMobile } from "@careloop/shared/schemas";
+import { OTP_CODE_LENGTH, toIndianMobile } from "@careloop/shared/schemas";
 import { Button } from "@careloop/ui/components/button";
 import { FieldError, Input } from "@careloop/ui/components/input";
 import { OtpInput } from "@careloop/ui/components/otp-input";
 import { useApi } from "../../../lib/api/browser";
 
-const CODE_LENGTH = 6;
 const RESEND_SECONDS = 30;
 
 type Step = "phone" | "code";
@@ -20,11 +19,11 @@ type Busy = "idle" | "sending" | "verifying";
 type Problem = "invalidPhone" | "wrongCode" | "locked" | ErrorCode;
 
 function problemFrom(error: unknown, step: Step): Problem {
-  if (!(error instanceof ApiError)) return ErrorCode.internal_error;
-  if (error.code === ErrorCode.rate_limited) return "locked";
-  if (step === "phone" && error.code === ErrorCode.validation_failed) return "invalidPhone";
-  if (step === "code" && error.code === ErrorCode.invalid_code) return "wrongCode";
-  return error.code;
+  const code = errorCodeOf(error);
+  if (code === ErrorCode.rate_limited) return "locked";
+  if (step === "phone" && code === ErrorCode.validation_failed) return "invalidPhone";
+  if (step === "code" && code === ErrorCode.invalid_code) return "wrongCode";
+  return code;
 }
 
 export function SignInForm() {
@@ -74,7 +73,7 @@ export function SignInForm() {
 
   const verify = async (value: string) => {
     const national = toIndianMobile(phone);
-    if (!national || value.length !== CODE_LENGTH) return;
+    if (!national || value.length !== OTP_CODE_LENGTH) return;
     setBusy("verifying");
     setProblem(null);
     try {
@@ -174,9 +173,9 @@ export function SignInForm() {
           onChange={(value) => {
             setCode(value);
             if (problem === "wrongCode") setProblem(null);
-            if (value.length === CODE_LENGTH && busy === "idle") void verify(value);
+            if (value.length === OTP_CODE_LENGTH && busy === "idle") void verify(value);
           }}
-          length={CODE_LENGTH}
+          length={OTP_CODE_LENGTH}
           autoFocus
           disabled={busy !== "idle"}
           invalid={problem === "wrongCode"}
@@ -190,7 +189,7 @@ export function SignInForm() {
         type="submit"
         size="lg"
         loading={busy === "verifying"}
-        disabled={code.length !== CODE_LENGTH}
+        disabled={code.length !== OTP_CODE_LENGTH}
       >
         {busy === "verifying" ? t("verifying") : t("verify")}
       </Button>

@@ -2,8 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { ApiError, apiRoutes, createApiClient } from "@careloop/shared/api";
-import { ErrorCode } from "@careloop/shared/errors";
+import { apiRoutes, createApiClient, isSessionEnded } from "@careloop/shared/api";
 import type { SessionResponse } from "@careloop/shared/schemas";
 import { apiOrigin, SIGNED_OUT_PATH } from "./config";
 
@@ -30,12 +29,7 @@ export const getSession = cache(async (): Promise<SessionResponse> => {
   try {
     return await api.request(apiRoutes.auth.session, {});
   } catch (error) {
-    if (
-      error instanceof ApiError &&
-      (error.code === ErrorCode.unauthenticated || error.code === ErrorCode.session_revoked)
-    ) {
-      redirect(SIGNED_OUT_PATH);
-    }
+    if (isSessionEnded(error)) redirect(SIGNED_OUT_PATH);
     throw error;
   }
 });

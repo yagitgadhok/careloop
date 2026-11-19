@@ -1,6 +1,5 @@
-/** Auth cookie names. The API sets both; the web only checks that the access cookie is present. */
-export const ACCESS_COOKIE = "__Host-careloop_at";
-export const REFRESH_COOKIE = "__Host-careloop_rt";
+/** The API sets the auth cookies; the web only checks that the access cookie is present. */
+export { ACCESS_COOKIE } from "@careloop/shared/auth-cookies";
 
 /** Where server-side code reaches the API directly. */
 export function apiOrigin(): string {

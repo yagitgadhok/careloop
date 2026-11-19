@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useId, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import { AlertTriangle, MoreHorizontal, RefreshCw, UserPlus, Users } from "lucide-react";
-import { ApiError, apiRoutes } from "@careloop/shared/api";
+import { ApiError, apiRoutes, errorCodeOf } from "@careloop/shared/api";
 import { ErrorCode } from "@careloop/shared/errors";
 import {
   INVALID_PHONE,
@@ -48,13 +48,14 @@ type LoadState = { kind: "loading" } | { kind: "error" } | { kind: "ready"; memb
 /** Inline problems a dialog can show. Anything else falls back to the matching errors.* text. */
 type Problem = "invalidPhone" | "alreadyMember" | "rolesRequired" | ErrorCode;
 
-function codeOf(error: unknown): ErrorCode {
-  return error instanceof ApiError ? error.code : ErrorCode.internal_error;
-}
-
 function formatPhone(phone: string): string {
   const match = /^\+91(\d{5})(\d{5})$/.exec(phone);
   return match ? `+91 ${match[1]} ${match[2]}` : phone;
+}
+
+/** How a member is named in labels and dialogs: their name, or their phone until one is set. */
+function displayName(member: Membership): string {
+  return member.name ?? formatPhone(member.phone);
 }
 
 function useProblemText() {
@@ -68,7 +69,6 @@ function useProblemText() {
 
 export function TeamManager({ currentUserId }: { currentUserId: string }) {
   const t = useTranslations("team");
-  const tRoles = useTranslations("roles");
   const tErrors = useTranslations("errors");
   const api = useApi();
   const toast = useToast();
@@ -91,6 +91,12 @@ export function TeamManager({ currentUserId }: { currentUserId: string }) {
     void load();
   }, [load]);
 
+  // Your own roles or membership changed: reload so navigation and permissions match.
+  const afterChange = async (selfChanged: boolean) => {
+    if (selfChanged) window.location.assign("/");
+    else await load();
+  };
+
   const reactivate = async (member: Membership) => {
     try {
       await api.request(apiRoutes.memberships.reactivate, {
@@ -101,7 +107,7 @@ export function TeamManager({ currentUserId }: { currentUserId: string }) {
     } catch (error) {
       toast({
         title: t("toasts.failed"),
-        description: tErrors(codeOf(error)),
+        description: tErrors(errorCodeOf(error)),
         variant: "destructive",
       });
     }
@@ -121,137 +127,18 @@ export function TeamManager({ currentUserId }: { currentUserId: string }) {
         }
       />
 
-      {state.kind === "loading" ? (
-        <div className="flex flex-col gap-3 rounded-xl border bg-card p-4" aria-busy="true">
-          <span className="sr-only">{t("loading")}</span>
-          {Array.from({ length: 4 }, (_, index) => (
-            <div key={index} className="flex items-center gap-4">
-              <Skeleton className="h-5 w-40" />
-              <Skeleton className="h-5 w-32" />
-              <Skeleton className="h-5 w-24" />
-              <Skeleton className="ml-auto h-8 w-8" />
-            </div>
-          ))}
-        </div>
-      ) : state.kind === "error" ? (
-        <EmptyState
-          icon={<AlertTriangle />}
-          title={t("errorTitle")}
-          description={t("errorDescription")}
-          action={
-            <Button
-              variant="outline"
-              onClick={() => {
-                setState({ kind: "loading" });
-                void load();
-              }}
-            >
-              <RefreshCw aria-hidden="true" />
-              {t("retry")}
-            </Button>
-          }
-        />
-      ) : state.members.length === 0 ? (
-        <EmptyState
-          icon={<Users />}
-          title={t("emptyTitle")}
-          description={t("emptyDescription")}
-          action={
-            <Button onClick={() => setInviteOpen(true)}>
-              <UserPlus aria-hidden="true" />
-              {t("invite")}
-            </Button>
-          }
-        />
-      ) : (
-        <div className="rounded-xl border bg-card shadow-xs">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="pl-5">{t("columns.name")}</TableHead>
-                <TableHead>{t("columns.phone")}</TableHead>
-                <TableHead>{t("columns.roles")}</TableHead>
-                <TableHead>{t("columns.status")}</TableHead>
-                <TableHead className="pr-5 text-right">
-                  <span className="sr-only">{t("columns.actions")}</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {state.members.map((member) => {
-                const isSelf = member.userId === currentUserId;
-                const active = member.status === "active";
-                return (
-                  <TableRow
-                    key={member.id}
-                    className={active ? undefined : "text-muted-foreground"}
-                  >
-                    <TableCell className="pl-5 font-medium">
-                      <span className="flex items-center gap-2">
-                        {member.name ?? (
-                          <span className="font-normal text-muted-foreground italic">
-                            {t("unnamed")}
-                          </span>
-                        )}
-                        {isSelf ? <Badge variant="outline">{t("you")}</Badge> : null}
-                      </span>
-                    </TableCell>
-                    <TableCell className="tabular-nums">{formatPhone(member.phone)}</TableCell>
-                    <TableCell>
-                      <span className="flex flex-wrap gap-1">
-                        {member.roles.map((role) => (
-                          <Badge key={role} variant="secondary">
-                            {tRoles(role)}
-                          </Badge>
-                        ))}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={active ? "success" : "outline"}>
-                        {t(`status.${member.status}`)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="pr-5 text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            aria-label={t("actionsFor", {
-                              name: member.name ?? formatPhone(member.phone),
-                            })}
-                          >
-                            <MoreHorizontal aria-hidden="true" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {active ? (
-                            <>
-                              <DropdownMenuItem onSelect={() => setEditing(member)}>
-                                {t("editRoles")}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                variant="destructive"
-                                onSelect={() => setDeactivating(member)}
-                              >
-                                {t("deactivate")}
-                              </DropdownMenuItem>
-                            </>
-                          ) : (
-                            <DropdownMenuItem onSelect={() => void reactivate(member)}>
-                              {t("reactivate")}
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+      <TeamMembers
+        state={state}
+        currentUserId={currentUserId}
+        onRetry={() => {
+          setState({ kind: "loading" });
+          void load();
+        }}
+        onInvite={() => setInviteOpen(true)}
+        onEditRoles={setEditing}
+        onDeactivate={setDeactivating}
+        onReactivate={(member) => void reactivate(member)}
+      />
 
       <InviteDialog
         open={inviteOpen}
@@ -269,9 +156,7 @@ export function TeamManager({ currentUserId }: { currentUserId: string }) {
         onSaved={async (selfChanged) => {
           setEditing(null);
           toast({ title: t("toasts.rolesChanged"), variant: "success" });
-          // Your own roles changed: reload so navigation and permissions match.
-          if (selfChanged) window.location.assign("/");
-          else await load();
+          await afterChange(selfChanged);
         }}
       />
       <DeactivateDialog
@@ -280,12 +165,165 @@ export function TeamManager({ currentUserId }: { currentUserId: string }) {
         onDone={async (selfChanged) => {
           setDeactivating(null);
           toast({ title: t("toasts.deactivated"), variant: "success" });
-          if (selfChanged) window.location.assign("/");
-          else await load();
+          await afterChange(selfChanged);
         }}
         isSelf={deactivating?.userId === currentUserId}
       />
     </>
+  );
+}
+
+/** The member list, or its loading, error or empty state. */
+function TeamMembers({
+  state,
+  currentUserId,
+  onRetry,
+  onInvite,
+  onEditRoles,
+  onDeactivate,
+  onReactivate,
+}: {
+  state: LoadState;
+  currentUserId: string;
+  onRetry: () => void;
+  onInvite: () => void;
+  onEditRoles: (member: Membership) => void;
+  onDeactivate: (member: Membership) => void;
+  onReactivate: (member: Membership) => void;
+}) {
+  const t = useTranslations("team");
+  const tRoles = useTranslations("roles");
+
+  if (state.kind === "loading") {
+    return (
+      <div className="flex flex-col gap-3 rounded-xl border bg-card p-4" aria-busy="true">
+        <span className="sr-only">{t("loading")}</span>
+        {Array.from({ length: 4 }, (_, index) => (
+          <div key={index} className="flex items-center gap-4">
+            <Skeleton className="h-5 w-40" />
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="h-5 w-24" />
+            <Skeleton className="ml-auto h-8 w-8" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+  if (state.kind === "error") {
+    return (
+      <EmptyState
+        icon={<AlertTriangle />}
+        title={t("errorTitle")}
+        description={t("errorDescription")}
+        action={
+          <Button variant="outline" onClick={onRetry}>
+            <RefreshCw aria-hidden="true" />
+            {t("retry")}
+          </Button>
+        }
+      />
+    );
+  }
+  if (state.members.length === 0) {
+    return (
+      <EmptyState
+        icon={<Users />}
+        title={t("emptyTitle")}
+        description={t("emptyDescription")}
+        action={
+          <Button onClick={onInvite}>
+            <UserPlus aria-hidden="true" />
+            {t("invite")}
+          </Button>
+        }
+      />
+    );
+  }
+  return (
+    <div className="rounded-xl border bg-card shadow-xs">
+      <Table>
+        <TableHeader>
+          <TableRow className="hover:bg-transparent">
+            <TableHead className="pl-5">{t("columns.name")}</TableHead>
+            <TableHead>{t("columns.phone")}</TableHead>
+            <TableHead>{t("columns.roles")}</TableHead>
+            <TableHead>{t("columns.status")}</TableHead>
+            <TableHead className="pr-5 text-right">
+              <span className="sr-only">{t("columns.actions")}</span>
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {state.members.map((member) => {
+            const isSelf = member.userId === currentUserId;
+            const active = member.status === "active";
+            return (
+              <TableRow key={member.id} className={active ? undefined : "text-muted-foreground"}>
+                <TableCell className="pl-5 font-medium">
+                  <span className="flex items-center gap-2">
+                    {member.name ?? (
+                      <span className="font-normal text-muted-foreground italic">
+                        {t("unnamed")}
+                      </span>
+                    )}
+                    {isSelf ? <Badge variant="outline">{t("you")}</Badge> : null}
+                  </span>
+                </TableCell>
+                <TableCell className="tabular-nums">{formatPhone(member.phone)}</TableCell>
+                <TableCell>
+                  <span className="flex flex-wrap gap-1">
+                    {member.roles.map((role) => (
+                      <Badge key={role} variant="secondary">
+                        {tRoles(role)}
+                      </Badge>
+                    ))}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <Badge variant={active ? "success" : "outline"}>
+                    {t(`status.${member.status}`)}
+                  </Badge>
+                </TableCell>
+                <TableCell className="pr-5 text-right">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={t("actionsFor", {
+                          name: displayName(member),
+                        })}
+                      >
+                        <MoreHorizontal aria-hidden="true" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {active ? (
+                        <>
+                          <DropdownMenuItem onSelect={() => onEditRoles(member)}>
+                            {t("editRoles")}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onSelect={() => onDeactivate(member)}
+                          >
+                            {t("deactivate")}
+                          </DropdownMenuItem>
+                        </>
+                      ) : (
+                        <DropdownMenuItem onSelect={() => onReactivate(member)}>
+                          {t("reactivate")}
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </div>
   );
 }
 
@@ -389,7 +427,7 @@ function InviteDialog({
       ) {
         setProblem("invalidPhone");
       } else {
-        setProblem(codeOf(error));
+        setProblem(errorCodeOf(error));
       }
     } finally {
       setBusy(false);
@@ -502,7 +540,7 @@ function RolesDialog({
       });
       await onSaved(isSelf);
     } catch (error) {
-      setProblem(codeOf(error));
+      setProblem(errorCodeOf(error));
       setConfirming(false);
       setBusy(false);
     }
@@ -516,7 +554,11 @@ function RolesDialog({
     void save();
   };
 
-  const name = member.name ?? formatPhone(member.phone);
+  const name = displayName(member);
+  let description: string;
+  if (!confirming) description = t("description", { name });
+  else if (isSelf) description = t("confirmSelfBody");
+  else description = t("confirmBody", { name });
 
   return (
     <Dialog open onOpenChange={(open) => (open ? undefined : onClose())}>
@@ -524,13 +566,7 @@ function RolesDialog({
         <form onSubmit={submit} noValidate className="flex flex-col gap-5">
           <DialogHeader>
             <DialogTitle>{confirming ? t("confirmTitle") : t("title")}</DialogTitle>
-            <DialogDescription>
-              {confirming
-                ? isSelf
-                  ? t("confirmSelfBody")
-                  : t("confirmBody", { name })
-                : t("description", { name })}
-            </DialogDescription>
+            <DialogDescription>{description}</DialogDescription>
           </DialogHeader>
           {confirming ? null : (
             <RoleCheckboxes
@@ -597,12 +633,12 @@ function DeactivateDialog({
       });
       await onDone(isSelf);
     } catch (error) {
-      setProblem(codeOf(error));
+      setProblem(errorCodeOf(error));
       setBusy(false);
     }
   };
 
-  const name = member.name ?? formatPhone(member.phone);
+  const name = displayName(member);
 
   return (
     <Dialog open onOpenChange={(open) => (open ? undefined : onClose())}>
