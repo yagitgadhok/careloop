@@ -15,6 +15,7 @@ export function configureApp(app: NestExpressApplication): void {
   const env = app.get<Env>(ENV);
   const logger = app.get<Logger>(LOGGER);
 
+  app.set("trust proxy", trustProxySetting(env.TRUST_PROXY));
   app.setGlobalPrefix("api");
   app.use(assignRequestId);
   app.use(createHttpLogger(logger, env));
@@ -22,4 +23,11 @@ export function configureApp(app: NestExpressApplication): void {
   app.use(cookieParser());
   app.useBodyParser("json");
   app.use(runInRequestContext);
+}
+
+/** Express accepts a hop count, true/false, or a list of addresses and named ranges. */
+function trustProxySetting(value: string): string | number | boolean {
+  if (/^\d+$/.test(value)) return Number(value);
+  if (value === "true" || value === "false") return value === "true";
+  return value;
 }

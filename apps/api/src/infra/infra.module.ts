@@ -1,18 +1,20 @@
 import { Global, Inject, Module, type OnApplicationShutdown } from "@nestjs/common";
 import { createDb, createSecurityKeys, type Db } from "@careloop/db";
 import { Redis } from "ioredis";
+import { systemClock } from "../common/clock.js";
 import { createLogger, type Logger } from "../common/logger.js";
 import { loadEnv, type Env } from "../config/env.js";
-import { DB, ENV, LOGGER, REDIS, SECURITY_KEYS } from "./tokens.js";
+import { CLOCK, DB, ENV, LOGGER, REDIS, SECURITY_KEYS } from "./tokens.js";
 
 /**
- * Configuration, logger, database, Redis and the phone-hash keys, available
+ * Configuration, logger, clock, database, Redis and the phone-hash keys, available
  * to every module.
  */
 @Global()
 @Module({
   providers: [
     { provide: ENV, useFactory: (): Env => loadEnv() },
+    { provide: CLOCK, useValue: systemClock },
     { provide: LOGGER, useFactory: (env: Env) => createLogger(env), inject: [ENV] },
     {
       provide: DB,
@@ -35,7 +37,7 @@ import { DB, ENV, LOGGER, REDIS, SECURITY_KEYS } from "./tokens.js";
       inject: [ENV],
     },
   ],
-  exports: [ENV, LOGGER, DB, REDIS, SECURITY_KEYS],
+  exports: [ENV, LOGGER, CLOCK, DB, REDIS, SECURITY_KEYS],
 })
 export class InfraModule implements OnApplicationShutdown {
   constructor(

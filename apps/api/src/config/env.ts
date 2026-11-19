@@ -19,6 +19,9 @@ const envSchema = z.object({
   PHONE_HASH_PEPPER: secret,
   WEB_ORIGIN: z.url(),
   API_PORT: z.coerce.number().int().min(1).max(65535),
+  // Express "trust proxy": which hops may set X-Forwarded-For. The web's
+  // rewrite (dev) and the ingress (deployed) forward the client IP.
+  TRUST_PROXY: z.string().min(1).default("loopback"),
 });
 
 export type Env = z.infer<typeof envSchema>;

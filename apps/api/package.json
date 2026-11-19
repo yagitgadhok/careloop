@@ -16,6 +16,7 @@
     "@careloop/shared": "workspace:*",
     "@nestjs/common": "catalog:",
     "@nestjs/core": "catalog:",
+    "@nestjs/jwt": "catalog:",
     "@nestjs/platform-express": "catalog:",
     "cookie-parser": "catalog:",
     "helmet": "catalog:",

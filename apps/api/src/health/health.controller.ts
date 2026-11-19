@@ -1,6 +1,7 @@
 import { Controller, Get, Inject, Res } from "@nestjs/common";
 import type { Db } from "@careloop/db";
 import type { Redis } from "ioredis";
+import { Public } from "../common/auth.decorators.js";
 import { DB, REDIS } from "../infra/tokens.js";
 
 const CHECK_TIMEOUT_MS = 2000;
@@ -26,6 +27,7 @@ async function passes(check: () => Promise<unknown>): Promise<boolean> {
   }
 }
 
+@Public()
 @Controller("health")
 export class HealthController {
   constructor(

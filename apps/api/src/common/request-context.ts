@@ -2,6 +2,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { ErrorCode } from "@careloop/shared/errors";
+import type { Role } from "@careloop/shared/schemas";
 
 /**
  * What the API knows about the request in flight. Holds ids only: never phone
@@ -12,8 +13,13 @@ export interface RequestContext {
   /** The signed-in user, once authentication has run. */
   userId?: string;
   sessionId?: string;
-  /** The organisation the session is working in. */
+  /**
+   * The organisation the session is working in, read from the session row on
+   * the server. Set only while the user's membership there is active.
+   */
   organisationId?: string;
+  /** The user's roles in that organisation, from the live membership. */
+  roles?: readonly Role[];
   /** The error code the response carried, for the request log line. */
   errorCode?: ErrorCode;
   /** The error class name, logged only in local development. */
