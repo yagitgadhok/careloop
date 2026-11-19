@@ -84,7 +84,7 @@ pnpm packs:validate       # check every pack against the pack meta-schema
 
 ## Data model
 
-- `Organisation → Location → Department → User`. Roles: owner, doctor, front desk.
+- `Organisation → Location → Department` models clinic structure. A person is one global `User` (one per phone number) with a `Membership` in each organisation they work at; the membership carries their roles (owner, doctor, front desk; a person can hold several). Patients are never `User` rows.
 - A `Patient` belongs to one organisation and is shared by all its doctors.
 - A `Visit` has exactly one `specialtyPackId` and `packVersion`. Pack answers go in `Visit.visitData` (JSONB), validated against that pack version.
 - Anything trended or exported (weight, BP, sugar, HbA1c) is also written to `Observation` with a code, value, unit and time. Charts read `Observation`, never the JSONB.

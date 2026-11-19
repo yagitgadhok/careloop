@@ -1,0 +1,38 @@
+{
+  "name": "careloop",
+  "private": true,
+  "description": "Clinic software for independent Indian clinics and polyclinics",
+  "packageManager": "pnpm@12.21.0",
+  "engines": {
+    "node": ">=24.15"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "eslint . && prettier --check .",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:e2e": "turbo run test:e2e",
+    "db:bootstrap": "turbo run db:bootstrap",
+    "db:migrate": "turbo run db:migrate",
+    "db:migrate:deploy": "turbo run db:migrate:deploy",
+    "db:seed": "turbo run db:seed",
+    "ops:create-org": "turbo run ops:create-org --",
+    "ops:unlock-phone": "turbo run ops:unlock-phone --",
+    "ops:disable-user": "turbo run ops:disable-user --",
+    "packs:validate": "turbo run packs:validate",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@eslint/js": "catalog:",
+    "eslint": "catalog:",
+    "globals": "catalog:",
+    "prettier": "catalog:",
+    "turbo": "catalog:",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:",
+    "vitest": "catalog:"
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "ui": "stream",
+  "globalEnv": ["APP_ENV", "NODE_ENV"],
+  "globalPassThroughEnv": [
+    "DATABASE_URL",
+    "DATABASE_ADMIN_URL",
+    "DATABASE_SHADOW_URL",
+    "DATABASE_OWNER_URL",
+    "DATABASE_APP_PASSWORD",
+    "DATABASE_OWNER_PASSWORD",
+    "REDIS_URL",
+    "JWT_SECRET",
+    "JWT_ISSUER",
+    "JWT_AUDIENCE",
+    "OTP_PEPPER",
+    "PHONE_HASH_PEPPER",
+    "OPERATOR_ID",
+    "WEB_ORIGIN",
+    "API_ORIGIN",
+    "API_PORT"
+  ],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+    },
+    "dev": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "persistent": true
+    },
+    "lint": {
+      "dependsOn": ["^build"]
+    },
+    "typecheck": {
+      "dependsOn": ["^build"]
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "cache": false
+    },
+    "test:e2e": {
+      "dependsOn": ["^build"],
+      "cache": false
+    },
+    "db:bootstrap": {
+      "dependsOn": ["build"],
+      "cache": false
+    },
+    "db:migrate": {
+      "cache": false,
+      "interactive": true
+    },
+    "db:migrate:deploy": {
+      "dependsOn": ["build"],
+      "cache": false
+    },
+    "db:seed": {
+      "dependsOn": ["build"],
+      "cache": false
+    },
+    "ops:create-org": {
+      "dependsOn": ["build"],
+      "cache": false
+    },
+    "ops:unlock-phone": {
+      "dependsOn": ["build"],
+      "cache": false
+    },
+    "ops:disable-user": {
+      "dependsOn": ["build"],
+      "cache": false
+    },
+    "packs:validate": {
+      "cache": false
+    }
+  }
+}

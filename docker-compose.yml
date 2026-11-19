@@ -1,0 +1,47 @@
+name: careloop
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: careloop
+      TZ: UTC
+    # Keep query parameters and detail lines out of Postgres logs, so patient
+    # data and phone numbers never reach them.
+    command:
+      - postgres
+      - -c
+      - log_parameter_max_length_on_error=0
+      - -c
+      - log_parameter_max_length=0
+      - -c
+      - log_error_verbosity=terse
+      - -c
+      - timezone=UTC
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d careloop"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  postgres-data:
+  redis-data:

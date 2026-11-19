@@ -1,0 +1,231 @@
+// CareLoop database schema.
+//
+// Tenancy: every table with an organisation_id column is a tenant table with
+// forced row-level security (see the rls migration). The global tables are
+// app_user, otp_challenge, session, security_event and organisation, which
+// has its own id-based policy. Row-level security, roles, grants and the
+// append-only triggers live in hand-written SQL migrations because Prisma
+// does not model them; foreign keys live here so Prisma never drops them.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  owner
+  doctor
+  front_desk
+
+  @@map("role")
+}
+
+enum UserStatus {
+  active
+  disabled
+
+  @@map("user_status")
+}
+
+enum MembershipStatus {
+  active
+  deactivated
+
+  @@map("membership_status")
+}
+
+enum OrganisationStatus {
+  active
+  suspended
+
+  @@map("organisation_status")
+}
+
+enum ActorType {
+  user
+  system
+  operator
+
+  @@map("actor_type")
+}
+
+// ---------------------------------------------------------------------------
+// Global tables (no tenant policy)
+// ---------------------------------------------------------------------------
+
+/// One row per person, keyed by their normalised +91 phone number.
+/// Patients are never stored here.
+model User {
+  id        String     @id @default(uuid(7)) @db.Uuid
+  phone     String     @unique
+  status    UserStatus @default(active)
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  memberships   Membership[]
+  sessions      Session[]
+  otpChallenges OtpChallenge[]
+
+  @@map("app_user")
+}
+
+model OtpChallenge {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  codeHash   String    @map("code_hash")
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
+  consumedAt DateTime? @map("consumed_at") @db.Timestamptz(6)
+  // Set when a newer code replaces this one.
+  replacedAt DateTime? @map("replaced_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt])
+  @@map("otp_challenge")
+}
+
+model Session {
+  id                       String    @id @default(uuid(7)) @db.Uuid
+  userId                   String    @map("user_id") @db.Uuid
+  // Every rotation of one sign-in shares a family; reuse revokes the family.
+  familyId                 String    @map("family_id") @db.Uuid
+  refreshTokenHash         String    @unique @map("refresh_token_hash")
+  previousRefreshTokenHash String?   @map("previous_refresh_token_hash")
+  rotatedAt                DateTime? @map("rotated_at") @db.Timestamptz(6)
+  // Checked against a live membership on every request.
+  activeOrganisationId     String?   @map("active_organisation_id") @db.Uuid
+  expiresAt                DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt                DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  lastUsedAt               DateTime  @default(now()) @map("last_used_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+  @@index([familyId])
+  @@index([previousRefreshTokenHash])
+  @@map("session")
+}
+
+/// Pre-tenant security events (OTP requests, failures, lockouts, sign-ins).
+/// Append-only. Phones and IPs are stored only as HMACs.
+model SecurityEvent {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  type           String
+  userId         String?  @map("user_id") @db.Uuid
+  phoneHash      String?  @map("phone_hash")
+  ipHash         String?  @map("ip_hash")
+  organisationId String?  @map("organisation_id") @db.Uuid
+  actorType      ActorType @default(user) @map("actor_type")
+  actorId        String?  @map("actor_id") @db.Uuid
+  requestId      String?  @map("request_id")
+
+  @@index([userId, createdAt])
+  @@index([phoneHash, createdAt])
+  @@map("security_event")
+}
+
+// ---------------------------------------------------------------------------
+// Organisation (policy on its own id)
+// ---------------------------------------------------------------------------
+
+model Organisation {
+  id        String             @id @db.Uuid
+  name      String
+  status    OrganisationStatus @default(active)
+  createdAt DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  locations   Location[]
+  departments Department[]
+  memberships Membership[]
+
+  @@map("organisation")
+}
+
+// ---------------------------------------------------------------------------
+// Tenant tables (forced row-level security on organisation_id)
+// ---------------------------------------------------------------------------
+
+model Location {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  organisationId String    @map("organisation_id") @db.Uuid
+  name           String
+  archivedAt     DateTime? @map("archived_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Restrict)
+  departments  Department[]
+
+  // Lets children reference (organisation_id, id) so a row can't point at
+  // another organisation's location.
+  @@unique([organisationId, id])
+  @@unique([organisationId, name])
+  @@map("location")
+}
+
+model Department {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  organisationId String    @map("organisation_id") @db.Uuid
+  locationId     String    @map("location_id") @db.Uuid
+  name           String
+  archivedAt     DateTime? @map("archived_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Restrict)
+  location     Location     @relation(fields: [organisationId, locationId], references: [organisationId, id], onDelete: Restrict)
+
+  @@unique([organisationId, id])
+  @@unique([locationId, name])
+  @@map("department")
+}
+
+model Membership {
+  id             String           @id @default(uuid(7)) @db.Uuid
+  organisationId String           @map("organisation_id") @db.Uuid
+  userId         String           @map("user_id") @db.Uuid
+  roles          Role[]
+  status         MembershipStatus @default(active)
+  deactivatedAt  DateTime?        @map("deactivated_at") @db.Timestamptz(6)
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Restrict)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([organisationId, id])
+  @@unique([organisationId, userId])
+  @@index([userId])
+  @@map("membership")
+}
+
+/// Who did what to which record, and when. IDs only, never patient data.
+/// Append-only. No foreign keys in or out, so records can be erased later
+/// while their audit trail stays. The primary key includes created_at so the
+/// table can be partitioned by time without a rewrite.
+model AuditLog {
+  id             String    @default(uuid(7)) @db.Uuid
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  organisationId String    @map("organisation_id") @db.Uuid
+  actorType      ActorType @map("actor_type")
+  actorId        String?   @map("actor_id") @db.Uuid
+  action         String
+  entityType     String    @map("entity_type")
+  entityIds      String[]  @map("entity_ids") @db.Uuid
+  requestId      String?   @map("request_id")
+
+  @@id([id, createdAt])
+  @@index([organisationId, createdAt])
+  @@index([organisationId, entityType, createdAt])
+  @@map("audit_log")
+}

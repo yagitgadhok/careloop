@@ -1,0 +1,38 @@
+{
+  "name": "@careloop/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    }
+  },
+  "scripts": {
+    "build": "prisma generate && tsc -p tsconfig.build.json",
+    "typecheck": "prisma generate && tsc --noEmit",
+    "test": "vitest run",
+    "db:bootstrap": "node dist/scripts/bootstrap-roles.js",
+    "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:seed": "node dist/seed/index.js",
+    "ops:create-org": "node dist/scripts/create-organisation.js",
+    "ops:unlock-phone": "node dist/scripts/unlock-phone.js",
+    "ops:disable-user": "node dist/scripts/disable-user.js"
+  },
+  "dependencies": {
+    "@careloop/shared": "workspace:*",
+    "@prisma/adapter-pg": "catalog:",
+    "@prisma/client": "catalog:",
+    "ioredis": "catalog:",
+    "pg": "catalog:",
+    "prisma": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@types/pg": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
