@@ -97,6 +97,7 @@ export function createDb(options: DbOptions): Db {
         async (tx) => {
           const allowed = new Set<string>(SYSTEM_MODELS);
           const userMemberships = async (userId: string): Promise<UserMembershipRow[]> => {
+            // node-pg can't parse arrays of a custom enum, so roles are read as text[].
             const rows = await tx.$queryRaw<
               Array<{
                 organisation_id: string;
@@ -105,7 +106,8 @@ export function createDb(options: DbOptions): Db {
                 roles: Role[];
                 status: MembershipStatus;
               }>
-            >`SELECT * FROM app.user_memberships(${userId}::uuid)`;
+            >`SELECT organisation_id, organisation_name, organisation_status, roles::text[] AS roles, status
+              FROM app.user_memberships(${userId}::uuid)`;
             return rows.map((row) => ({
               organisationId: row.organisation_id,
               organisationName: row.organisation_name,

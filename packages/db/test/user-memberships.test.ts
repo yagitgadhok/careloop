@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { createDb } from "../src/index.js";
 import { appPool, asOrg, createOrgFixture, type OrgFixture } from "./helpers/pg.js";
 
 let pool: pg.Pool;
@@ -57,5 +58,15 @@ describe("cross-organisation membership lookup", () => {
       sharedDoctorId,
     ]);
     expect(rowCount).toBe(0);
+  });
+
+  it("returns roles as an array through the system helper", async () => {
+    const db = createDb({ connectionString: process.env["DATABASE_URL"] ?? "" });
+    try {
+      const rows = await db.withSystem("auth", (sys) => sys.userMemberships(sharedDoctorId));
+      expect(rows.map((r) => r.roles)).toEqual([["doctor"], ["doctor"]]);
+    } finally {
+      await db.disconnect();
+    }
   });
 });
