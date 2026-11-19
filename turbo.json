@@ -42,7 +42,7 @@
       "cache": false
     },
     "test:e2e": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["^build", "build", "@careloop/api#build"],
       "cache": false
     },
     "db:bootstrap": {

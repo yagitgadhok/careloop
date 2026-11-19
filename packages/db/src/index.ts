@@ -20,7 +20,8 @@ export {
   requireOperatorId,
 } from "./organisations.js";
 export type { CreateOrganisationInput, CreateOrganisationResult } from "./organisations.js";
-export { disableUser, parsePhoneArgs, unlockPhone } from "./operators.js";
+export { deleteOtpCounters, disableUser, parsePhoneArgs, unlockPhone } from "./operators.js";
+export { upsertUserByPhone } from "./users.js";
 export type { OperatorPhoneInput } from "./operators.js";
 export type { SecurityKeys, SecurityKeyOptions } from "./security-keys.js";
 export {

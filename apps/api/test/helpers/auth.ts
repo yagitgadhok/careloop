@@ -1,5 +1,5 @@
 import { randomInt } from "node:crypto";
-import { createOrganisation, type Db, type SecurityKeys } from "@careloop/db";
+import { createOrganisation, deleteOtpCounters, type Db, type SecurityKeys } from "@careloop/db";
 import type { Redis } from "ioredis";
 import type { Response } from "supertest";
 import { ACCESS_COOKIE, REFRESH_COOKIE } from "../../src/auth/cookies.js";
@@ -95,7 +95,7 @@ export async function createAuthTestApp(options: TestAppOptions = {}): Promise<A
 
   const lastCode = async (phone: string) => {
     await otp.whenIdle();
-    return redis.get(`test:otp:${keys.phoneHash(phone)}`);
+    return redis.get(keys.otp.testCode(keys.phoneHash(phone)));
   };
 
   const verify = (phone: string, code: string, ip: string) => {
@@ -118,11 +118,8 @@ export async function createAuthTestApp(options: TestAppOptions = {}): Promise<A
     const doomed: string[] = [];
     for (const phone of phones) {
       const hash = keys.phoneHash(phone);
-      doomed.push(`test:otp:${hash}`);
-      for (const pattern of keys.otp.allForPhone(hash)) {
-        if (pattern.includes("*")) doomed.push(...(await redis.keys(pattern)));
-        else doomed.push(pattern);
-      }
+      await deleteOtpCounters(redis, keys, hash);
+      doomed.push(keys.otp.testCode(hash));
     }
     for (const ip of ips) doomed.push(keys.otp.ipRequests(keys.ipHash(ip)));
     if (doomed.length) await redis.del(...doomed);

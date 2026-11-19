@@ -90,6 +90,42 @@ describe("createOrganisation", () => {
     expect(c.memberships).toHaveLength(1);
     expect(c.audits).toHaveLength(1);
   });
+
+  it("refuses a re-run with the same id but a different name, and changes nothing", async () => {
+    const organisationId = randomUUID();
+    const input = {
+      organisationId,
+      name: "Original Clinic",
+      locationName: "Main",
+      ownerPhone: randomPhone(),
+      operatorId: OPERATOR_ID,
+    };
+    await createOrganisation(db, input);
+    await expect(createOrganisation(db, { ...input, name: "Renamed Clinic" })).rejects.toThrow(
+      "Organisation already exists with different details",
+    );
+    const c = await counts(organisationId);
+    expect(c.memberships).toHaveLength(1);
+    expect(c.audits).toHaveLength(1);
+  });
+
+  it("refuses a re-run with the same id but a different owner, and adds no membership", async () => {
+    const organisationId = randomUUID();
+    const input = {
+      organisationId,
+      name: "Owned Clinic",
+      locationName: "Main",
+      ownerPhone: randomPhone(),
+      operatorId: OPERATOR_ID,
+    };
+    const first = await createOrganisation(db, input);
+    await expect(createOrganisation(db, { ...input, ownerPhone: randomPhone() })).rejects.toThrow(
+      "Organisation already exists with different details",
+    );
+    const c = await counts(organisationId);
+    expect(c.memberships).toEqual([{ roles: ["owner"], userId: first.ownerUserId }]);
+    expect(c.audits).toHaveLength(1);
+  });
 });
 
 describe("create-organisation command arguments", () => {

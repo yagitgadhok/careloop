@@ -194,7 +194,7 @@ Independent Indian clinics and polyclinics run appointments, consultations, pres
   - **Lockout:** 5 failed attempts lock a phone for 15 minutes. Attempts count across all challenges, so a resend doesn't reset them, and they are counted atomically.
   - **Rate limits:** 30 seconds between resends, and 10 sends a day.
     - The send cap and the lockout are counted per phone-and-IP pair, so one attacker can only use up their own allowance. Stopping a known staff member from signing in would otherwise be trivial.
-    - Per-phone backstops stop distributed guessing: at most 20 failed attempts and 30 sends per phone per day, across all IPs.
+    - Per-phone backstops stop distributed guessing: at most 20 failed attempts and 30 sends per phone per hour, across all IPs; reaching the failure cap locks the phone until that hour ends.
     - The per-IP limit is generous (60 requests an hour), because Indian mobile carriers and clinic broadband put many staff behind one IP.
   - **Uniformity:** every counter, the lockout included, lives in Redis under HMAC'd phone keys. They are kept for every phone whether registered or not. Verifying against a phone with no challenge returns the same invalid-code response. Neither requesting nor verifying can reveal which numbers are registered.
   - **Unlock:** an operator can clear every counter for a phone (lockout, resend gap and daily caps) with an audited command.

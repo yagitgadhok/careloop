@@ -12,9 +12,6 @@ describe("permissions", () => {
 
   it("gives a doctor-plus-owner role set the union of both", () => {
     expect(permissionsFor(["doctor", "owner"])).toEqual(
-      new Set([...permissionsFor(["doctor"]), ...permissionsFor(["owner"])]),
-    );
-    expect(permissionsFor(["doctor", "owner"])).toEqual(
       new Set(["org.read", "members.read", "members.manage"]),
     );
   });

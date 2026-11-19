@@ -8,21 +8,37 @@ export type AppEnv = (typeof APP_ENVS)[number];
 const required = z.string().min(1);
 const secret = z.string().min(16);
 
-const envSchema = z.object({
-  APP_ENV: z.enum(APP_ENVS),
-  DATABASE_URL: required,
-  REDIS_URL: required,
-  JWT_SECRET: secret,
-  JWT_ISSUER: required,
-  JWT_AUDIENCE: required,
-  OTP_PEPPER: secret,
-  PHONE_HASH_PEPPER: secret,
-  WEB_ORIGIN: z.url(),
-  API_PORT: z.coerce.number().int().min(1).max(65535),
-  // Express "trust proxy": which hops may set X-Forwarded-For. The web's
-  // rewrite (dev) and the ingress (deployed) forward the client IP.
-  TRUST_PROXY: z.string().min(1).default("loopback"),
-});
+/** Environments where "trust proxy" must be configured on purpose, not defaulted. */
+const DEPLOYED_ENVS: ReadonlySet<AppEnv> = new Set(["staging", "production"]);
+
+const envSchema = z
+  .object({
+    APP_ENV: z.enum(APP_ENVS),
+    DATABASE_URL: required,
+    REDIS_URL: required,
+    JWT_SECRET: secret,
+    JWT_ISSUER: required,
+    JWT_AUDIENCE: required,
+    OTP_PEPPER: secret,
+    PHONE_HASH_PEPPER: secret,
+    WEB_ORIGIN: z.url(),
+    API_PORT: z.coerce.number().int().min(1).max(65535),
+    // Express "trust proxy": which hops may set X-Forwarded-For. The web's
+    // rewrite (dev) and the ingress (deployed) forward the client IP.
+    // Local and test default to loopback; staging and production must set it,
+    // or every client would share the ingress's IP and its rate-limit bucket.
+    TRUST_PROXY: z.string().min(1).optional(),
+  })
+  .superRefine((env, ctx) => {
+    if (env.TRUST_PROXY === undefined && DEPLOYED_ENVS.has(env.APP_ENV)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["TRUST_PROXY"],
+        message: "TRUST_PROXY must be set in staging and production",
+      });
+    }
+  })
+  .transform((env) => ({ ...env, TRUST_PROXY: env.TRUST_PROXY ?? "loopback" }));
 
 export type Env = z.infer<typeof envSchema>;
 

@@ -1,6 +1,6 @@
 import { parseArgs } from "node:util";
 import type { Redis } from "ioredis";
-import { toE164 } from "./phone.js";
+import { toE164 } from "@careloop/shared/schemas";
 import { securityEvent } from "./audit.js";
 import { requireOperatorId } from "./organisations.js";
 import type { SecurityKeys } from "./security-keys.js";
@@ -21,11 +21,7 @@ export async function unlockPhone(
   input: OperatorPhoneInput,
 ): Promise<number> {
   const phoneHash = deps.keys.phoneHash(input.phone);
-  let removed = 0;
-  for (const pattern of deps.keys.otp.allForPhone(phoneHash)) {
-    const matches = pattern.includes("*") ? await scanAll(deps.redis, pattern) : [pattern];
-    if (matches.length) removed += await deps.redis.del(...matches);
-  }
+  const removed = await deleteOtpCounters(deps.redis, deps.keys, phoneHash);
   await deps.db.withSystem("operator", (sys) =>
     securityEvent(sys, {
       type: "operator.unlock_phone",
@@ -34,6 +30,23 @@ export async function unlockPhone(
       actorId: input.operatorId,
     }),
   );
+  return removed;
+}
+
+/**
+ * Deletes every sign-in counter for one phone hash, across all IPs. Uses SCAN,
+ * never KEYS, so it does not block Redis. Returns the number of keys removed.
+ */
+export async function deleteOtpCounters(
+  redis: Redis,
+  keys: SecurityKeys,
+  phoneHash: string,
+): Promise<number> {
+  let removed = 0;
+  for (const pattern of keys.otp.allForPhone(phoneHash)) {
+    const matches = pattern.includes("*") ? await scanAll(redis, pattern) : [pattern];
+    if (matches.length) removed += await redis.del(...matches);
+  }
   return removed;
 }
 

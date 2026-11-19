@@ -1,5 +1,6 @@
 import type { Env } from "../config/env.js";
-import { assertDevelopmentSender, type OtpSender } from "./otp-sender.js";
+import { assertDevelopmentSender } from "./development-sender.js";
+import type { OtpSender } from "./otp-sender.js";
 
 /** `+919876543210` → `+91******3210`. */
 export function maskPhone(phone: string): string {

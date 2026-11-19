@@ -2,6 +2,7 @@ import { Inject, Injectable, type CanActivate, type ExecutionContext } from "@ne
 import { Reflector } from "@nestjs/core";
 import type { IncomingMessage } from "node:http";
 import { ErrorCode } from "@careloop/shared/errors";
+import type { OrgChoice } from "@careloop/shared/schemas";
 import {
   ACCESS_COOKIE,
   clearAuthCookies,
@@ -13,6 +14,14 @@ import { TokenVerifier } from "../auth/token-verifier.js";
 import { AppError } from "./app-error.js";
 import { IS_PUBLIC, IS_SESSION_ONLY } from "./auth.decorators.js";
 import { contextOf } from "./request-context.js";
+
+// Kept apart from the request context, which holds ids only.
+const organisationsByRequest = new WeakMap<IncomingMessage, OrgChoice[]>();
+
+/** The organisations the auth guard loaded for this request's user, if it ran. */
+export function signedInOrganisations(req: IncomingMessage): OrgChoice[] | undefined {
+  return organisationsByRequest.get(req);
+}
 
 /**
  * Authenticates every route that isn't `@Public()`: verifies the access
@@ -46,6 +55,7 @@ export class AuthGuard implements CanActivate {
     }
     if (state.status === "expired") throw new AppError(ErrorCode.unauthenticated);
 
+    organisationsByRequest.set(req, state.organisations);
     const requestContext = contextOf(req);
     if (requestContext) {
       requestContext.userId = state.userId;

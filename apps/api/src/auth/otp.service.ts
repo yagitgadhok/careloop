@@ -2,6 +2,7 @@ import { createHmac, randomInt, timingSafeEqual } from "node:crypto";
 import { Inject, Injectable, type BeforeApplicationShutdown } from "@nestjs/common";
 import { securityEvent, type Db, type SecurityKeys } from "@careloop/db";
 import { ErrorCode } from "@careloop/shared/errors";
+import { OTP_CODE_LENGTH } from "@careloop/shared/schemas";
 import { AppError } from "../common/app-error.js";
 import type { Clock } from "../common/clock.js";
 import type { Logger } from "../common/logger.js";
@@ -119,7 +120,7 @@ export class OtpService implements BeforeApplicationShutdown {
 
   private async issueAndSend(phone: string, phoneHash: string, meta: RequestMeta): Promise<void> {
     const now = this.clock.now();
-    const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
+    const code = String(randomInt(0, 10 ** OTP_CODE_LENGTH)).padStart(OTP_CODE_LENGTH, "0");
     const userId = await this.db.withSystem("auth", async (sys) => {
       const user = await sys.user.findUnique({
         where: { phone },

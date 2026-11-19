@@ -1,3 +1,7 @@
+import { ACCESS_COOKIE, REFRESH_COOKIE } from "@careloop/shared/auth-cookies";
+
+export { ACCESS_COOKIE, REFRESH_COOKIE };
+
 interface CookieOptions {
   httpOnly: boolean;
   secure: boolean;
@@ -11,11 +15,6 @@ export interface CookieResponse {
   cookie(name: string, value: string, options: CookieOptions): unknown;
   clearCookie(name: string, options: CookieOptions): unknown;
 }
-
-/** Access token (JWT, 15 minutes). */
-export const ACCESS_COOKIE = "__Host-careloop_at";
-/** Refresh token (opaque, rotating; lives as long as the session). */
-export const REFRESH_COOKIE = "__Host-careloop_rt";
 
 // `__Host-` cookies must be Secure, have Path=/ and carry no Domain.
 const BASE: CookieOptions = { httpOnly: true, secure: true, sameSite: "lax", path: "/" };

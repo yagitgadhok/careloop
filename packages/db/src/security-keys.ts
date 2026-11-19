@@ -31,12 +31,18 @@ export function createSecurityKeys({ phonePepper }: SecurityKeyOptions) {
     dailySends: (phone: string, ip: string) => `otp:sends:${phone}:${ip}`,
     /** Minimum gap between two codes for one phone. */
     resendGap: (phone: string) => `otp:gap:${phone}`,
-    /** Failed verify attempts for one phone across all IPs (backstop). */
+    /** Failed verify attempts for one phone across all IPs in the current hour (backstop). */
     phoneFailures: (phone: string) => `otp:phonefail:${phone}`,
-    /** Codes sent today to one phone across all IPs (backstop). */
+    /** When the phone-wide failure window ends (epoch ms). */
+    phoneFailuresWindow: (phone: string) => `otp:phonefailwin:${phone}`,
+    /** Codes sent to one phone across all IPs in the current hour (backstop). */
     phoneSends: (phone: string) => `otp:phonesends:${phone}`,
+    /** When the phone-wide send window ends (epoch ms). */
+    phoneSendsWindow: (phone: string) => `otp:phonesendswin:${phone}`,
     /** Sign-in requests from one IP in the current hour. */
     ipRequests: (ip: string) => `otp:ip:${ip}`,
+    /** Where the test sender leaves the latest code for one phone (tests only). */
+    testCode: (phone: string) => `test:otp:${phone}`,
     /** Key patterns covering every counter for one phone, for an operator unlock. */
     allForPhone: (phone: string) => [
       `otp:fail:${phone}:*`,
@@ -44,7 +50,9 @@ export function createSecurityKeys({ phonePepper }: SecurityKeyOptions) {
       `otp:sends:${phone}:*`,
       `otp:gap:${phone}`,
       `otp:phonefail:${phone}`,
+      `otp:phonefailwin:${phone}`,
       `otp:phonesends:${phone}`,
+      `otp:phonesendswin:${phone}`,
     ],
   };
 

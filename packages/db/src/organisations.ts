@@ -1,10 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { parseArgs } from "node:util";
-import { toE164 } from "./phone.js";
+import { toE164 } from "@careloop/shared/schemas";
 import { audit } from "./audit.js";
 import type { Db } from "./tenant.js";
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { upsertUserByPhone } from "./users.js";
+import { UUID_PATTERN } from "./uuid.js";
 
 export interface CreateOrganisationInput {
   /** Fixed id (the seed passes one); generated when omitted. */
@@ -26,8 +26,10 @@ export interface CreateOrganisationResult {
 
 /**
  * Creates (or re-confirms) an organisation, its first location and its owner's
- * membership. Safe to re-run with the same organisation id: nothing is
- * duplicated and the audit row is written only when something was inserted.
+ * membership. Safe to re-run with the same organisation id, name and owner:
+ * nothing is duplicated and the audit row is written only when something was
+ * inserted. A re-run with a different name, or with a different owner while
+ * the organisation already has an active owner, throws and changes nothing.
  */
 export async function createOrganisation(
   db: Db,
@@ -35,19 +37,33 @@ export async function createOrganisation(
 ): Promise<CreateOrganisationResult> {
   const phone = toE164(input.ownerPhone);
   if (!phone) throw new Error("Owner phone is not a valid Indian mobile number");
-  if (!UUID.test(input.operatorId)) throw new Error("Operator id must be a UUID");
+  if (!UUID_PATTERN.test(input.operatorId)) throw new Error("Operator id must be a UUID");
   const organisationId = input.organisationId ?? randomUUID();
 
-  const owner = await db.withSystem("operator", (sys) =>
-    sys.user.upsert({ where: { phone }, create: { phone }, update: {} }),
-  );
+  const owner = await db.withSystem("operator", (sys) => upsertUserByPhone(sys, phone));
 
   return db.withTenant(organisationId, async (ctx) => {
     const { tx } = ctx;
     let created = false;
 
     let organisation = await tx.organisation.findUnique({ where: { id: organisationId } });
-    if (!organisation) {
+    if (organisation) {
+      // A re-run must describe the same clinic; owners are added through the members API.
+      const otherOwner = await tx.membership.findFirst({
+        where: {
+          organisationId,
+          status: "active",
+          roles: { has: "owner" },
+          userId: { not: owner.id },
+        },
+      });
+      const ownerAlready = await tx.membership.findFirst({
+        where: { organisationId, status: "active", roles: { has: "owner" }, userId: owner.id },
+      });
+      if (organisation.name !== input.name || (otherOwner && !ownerAlready)) {
+        throw new Error("Organisation already exists with different details");
+      }
+    } else {
       organisation = await tx.organisation.create({
         data: { id: organisationId, name: input.name },
       });
@@ -95,7 +111,7 @@ export async function createOrganisation(
 /** Reads the operator id from the environment; every ops command needs one. */
 export function requireOperatorId(env: Record<string, string | undefined>): string {
   const id = env["OPERATOR_ID"];
-  if (!id || !UUID.test(id)) {
+  if (!id || !UUID_PATTERN.test(id)) {
     throw new Error("Set OPERATOR_ID to your operator UUID before running this command");
   }
   return id;
@@ -122,7 +138,7 @@ export function parseCreateOrganisationArgs(
   const ownerPhone = toE164(values["owner-phone"] ?? "");
   if (!ownerPhone) throw new Error("--owner-phone is not a valid Indian mobile number");
   const orgId = values["org-id"];
-  if (orgId !== undefined && !UUID.test(orgId)) throw new Error("--org-id must be a UUID");
+  if (orgId !== undefined && !UUID_PATTERN.test(orgId)) throw new Error("--org-id must be a UUID");
   return {
     name: values.name ?? "",
     locationName: values.location ?? "",

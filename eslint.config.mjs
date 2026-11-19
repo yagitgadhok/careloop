@@ -114,6 +114,11 @@ export default tseslint.config(
     },
   },
   {
+    // End-to-end tests read the test sign-in codes, which needs the shared key builder.
+    files: ["apps/web/e2e/**/*.ts"],
+    rules: { "no-restricted-imports": "off" },
+  },
+  {
     // shared is imported by browser code, so it stays free of Node-only APIs.
     files: ["packages/shared/src/**/*.ts"],
     rules: {

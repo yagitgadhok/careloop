@@ -3,6 +3,7 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ComponentProps,
@@ -56,6 +57,9 @@ export function SidebarProvider({
   );
 }
 
+/** Tailwind's `lg` breakpoint. */
+const DESKTOP_QUERY = "(min-width: 1024px)";
+
 const surfaceClasses = "flex h-full flex-col bg-sidebar text-sidebar-foreground";
 
 export interface SidebarProps {
@@ -72,6 +76,17 @@ export interface SidebarProps {
 export function Sidebar({ label, className, children }: SidebarProps) {
   const { collapsed, mobileOpen, setMobileOpen } = useSidebar();
   const strings = useUiStrings();
+
+  // At lg the drawer is hidden but its modal dialog would still trap focus and
+  // block the page, so close it when the viewport reaches lg.
+  useEffect(() => {
+    const desktop = window.matchMedia(DESKTOP_QUERY);
+    const onChange = (event: MediaQueryListEvent) => {
+      if (event.matches) setMobileOpen(false);
+    };
+    desktop.addEventListener("change", onChange);
+    return () => desktop.removeEventListener("change", onChange);
+  }, [setMobileOpen]);
 
   return (
     <>

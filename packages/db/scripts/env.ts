@@ -24,7 +24,7 @@ export function requireEnv(name: string): string {
 }
 
 /** Development-only tools (seed, console senders) run only in these environments. */
-export function isLocalOrTest(): boolean {
-  const env = process.env["APP_ENV"];
-  return env === "local" || env === "test";
+export function isLocalOrTest(env: Record<string, string | undefined> = process.env): boolean {
+  const appEnv = env["APP_ENV"];
+  return appEnv === "local" || appEnv === "test";
 }

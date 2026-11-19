@@ -3,7 +3,8 @@
  * number here is invented. The phone numbers sit in the 99999 000xx block,
  * reserved in this project for demo data; never use real numbers.
  */
-import { audit, createOrganisation, type Db, type Role } from "../src/index.js";
+import { isLocalOrTest } from "../scripts/env.js";
+import { audit, createOrganisation, upsertUserByPhone, type Db, type Role } from "../src/index.js";
 
 const SEED_OPERATOR_ID = "00000000-0000-4000-8000-00000000500d";
 
@@ -40,8 +41,7 @@ export const SEED = {
 type ClinicSeed = typeof SEED.sunrise | typeof SEED.lotus;
 
 export function assertSeedAllowed(env: Record<string, string | undefined>): void {
-  const appEnv = env["APP_ENV"];
-  if (appEnv !== "local" && appEnv !== "test") {
+  if (!isLocalOrTest(env)) {
     throw new Error("The seed only runs when APP_ENV is local or test");
   }
 }
@@ -60,11 +60,7 @@ async function seedClinic(db: Db, clinic: ClinicSeed): Promise<void> {
   const userIds = await db.withSystem("seed", async (sys) => {
     const ids = new Map<string, string>();
     for (const member of clinic.staff) {
-      const user = await sys.user.upsert({
-        where: { phone: member.phone },
-        create: { phone: member.phone },
-        update: {},
-      });
+      const user = await upsertUserByPhone(sys, member.phone);
       ids.set(member.phone, user.id);
     }
     return ids;

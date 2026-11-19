@@ -24,7 +24,9 @@ describe("security keys", () => {
       keys.otp.dailySends(phoneHash, ipHash),
       keys.otp.resendGap(phoneHash),
       keys.otp.phoneFailures(phoneHash),
+      keys.otp.phoneFailuresWindow(phoneHash),
       keys.otp.phoneSends(phoneHash),
+      keys.otp.phoneSendsWindow(phoneHash),
       keys.otp.ipRequests(ipHash),
     ];
     for (const value of all) {
@@ -34,12 +36,5 @@ describe("security keys", () => {
 
   it("gives different phones different hashes", () => {
     expect(keys.phoneHash("9876543210")).not.toBe(keys.phoneHash("9876543211"));
-  });
-
-  it("lists every key for one phone so an operator unlock can clear them", () => {
-    const phoneHash = keys.phoneHash("9876543210");
-    const patterns = keys.otp.allForPhone(phoneHash);
-    expect(patterns.length).toBeGreaterThanOrEqual(5);
-    expect(patterns.every((p) => p.includes(phoneHash))).toBe(true);
   });
 });

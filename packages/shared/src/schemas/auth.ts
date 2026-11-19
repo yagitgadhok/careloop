@@ -1,12 +1,15 @@
 import { z } from "zod";
 import { phoneSchema, roleSchema, uuidSchema } from "./common.js";
 
+/** Digits in a sign-in code. */
+export const OTP_CODE_LENGTH = 6;
+
 export const requestOtpBodySchema = z.object({ phone: phoneSchema });
 export type RequestOtpBody = z.input<typeof requestOtpBodySchema>;
 
 export const verifyOtpBodySchema = z.object({
   phone: phoneSchema,
-  code: z.string().regex(/^\d{6}$/),
+  code: z.string().regex(new RegExp(`^\\d{${OTP_CODE_LENGTH}}$`)),
 });
 export type VerifyOtpBody = z.input<typeof verifyOtpBodySchema>;
 

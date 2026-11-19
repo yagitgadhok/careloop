@@ -5,8 +5,6 @@ import { Public } from "../common/auth.decorators.js";
 import { DB, REDIS } from "../infra/tokens.js";
 
 const CHECK_TIMEOUT_MS = 2000;
-// The tenant helper needs an organisation id; this one owns no rows, and the check reads none.
-const NO_ORGANISATION = "00000000-0000-0000-0000-000000000000";
 
 interface StatusResponse {
   status(code: number): unknown;
@@ -39,7 +37,7 @@ export class HealthController {
   @Get()
   async check(@Res({ passthrough: true }) res: StatusResponse): Promise<{ ok: boolean }> {
     const [database, redis] = await Promise.all([
-      passes(() => this.db.withTenant(NO_ORGANISATION, ({ tx }) => tx.$queryRaw`SELECT 1`)),
+      passes(() => this.db.ping()),
       passes(() => this.redis.ping()),
     ]);
     const ok = database && redis;

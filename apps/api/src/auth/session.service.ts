@@ -35,6 +35,8 @@ export type AuthState =
       status: "live";
       userId: string;
       sessionId: string;
+      /** Every organisation the user can work in now. */
+      organisations: OrgChoice[];
       /** Set only while the user's membership in the session's organisation is active. */
       organisationId?: string;
       roles?: Role[];
@@ -195,28 +197,35 @@ export class SessionService {
       if (session.revokedAt || session.user.status !== "active") return { status: "revoked" };
       if (session.expiresAt.getTime() <= now.getTime()) return { status: "expired" };
 
-      const state: AuthState = { status: "live", userId: session.userId, sessionId: session.id };
-      if (session.activeOrganisationId) {
-        const organisations = await activeOrganisations(sys, session.userId);
-        const active = organisations.find((o) => o.organisationId === session.activeOrganisationId);
-        if (active) {
-          state.organisationId = active.organisationId;
-          state.roles = active.roles;
-        }
+      const organisations = await activeOrganisations(sys, session.userId);
+      const state: AuthState = {
+        status: "live",
+        userId: session.userId,
+        sessionId: session.id,
+        organisations,
+      };
+      const active = session.activeOrganisationId
+        ? organisations.find((o) => o.organisationId === session.activeOrganisationId)
+        : undefined;
+      if (active) {
+        state.organisationId = active.organisationId;
+        state.roles = active.roles;
       }
       return state;
     });
   }
 
-  /** The signed-in user's organisations and the active one. */
-  async describe(userId: string, sessionId: string): Promise<SessionResponse> {
-    return this.db.withSystem("auth", async (sys) => {
-      const session = await sys.session.findUnique({ where: { id: sessionId } });
-      const organisations = await activeOrganisations(sys, userId);
-      const active =
-        organisations.find((o) => o.organisationId === session?.activeOrganisationId) ?? null;
-      return { userId, organisations, active };
-    });
+  /**
+   * The signed-in user's organisations and the active one, from what
+   * `authenticate` already loaded for this request.
+   */
+  describe(
+    userId: string,
+    organisations: OrgChoice[],
+    activeOrganisationId: string | undefined,
+  ): SessionResponse {
+    const active = organisations.find((o) => o.organisationId === activeOrganisationId) ?? null;
+    return { userId, organisations, active };
   }
 
   /**
@@ -295,6 +304,30 @@ export class SessionService {
       });
       await event("session.reuse_detected", previous.userId);
       return { kind: "failed" };
+    });
+  }
+
+  /**
+   * The live session a refresh token belongs to: its current token, or the one
+   * it replaced if that rotation is still inside the grace window. Used to sign
+   * out when the access token has already expired. Never rotates or revokes.
+   */
+  async sessionForRefreshToken(
+    refreshToken: string,
+  ): Promise<{ userId: string; sessionId: string } | null> {
+    const now = this.clock.now();
+    const hash = hashToken(refreshToken);
+    return this.db.withSystem("auth", async (sys) => {
+      const current = await sys.session.findUnique({ where: { refreshTokenHash: hash } });
+      if (current) {
+        return current.revokedAt ? null : { userId: current.userId, sessionId: current.id };
+      }
+      const previous = await sys.session.findFirst({ where: { previousRefreshTokenHash: hash } });
+      const inGrace =
+        previous?.rotatedAt != null &&
+        now.getTime() - previous.rotatedAt.getTime() <= REFRESH_GRACE_MS;
+      if (!previous || !inGrace || previous.revokedAt) return null;
+      return { userId: previous.userId, sessionId: previous.id };
     });
   }
 
