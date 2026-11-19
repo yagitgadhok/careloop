@@ -1,0 +1,251 @@
+{
+  "common": {
+    "appName": "CareLoop",
+    "signOut": "Sign out"
+  },
+  "ui": {
+    "close": "Close",
+    "dismiss": "Dismiss",
+    "busy": "Please wait",
+    "otpCellLabel": "Digit {position} of {total}",
+    "openNavigation": "Open menu",
+    "collapseSidebar": "Collapse sidebar",
+    "expandSidebar": "Expand sidebar"
+  },
+  "errors": {
+    "validation_failed": "Some details aren’t right. Please check them and try again.",
+    "unauthenticated": "Please sign in to continue.",
+    "session_revoked": "You’ve been signed out. Please sign in again.",
+    "org_not_selected": "Choose a clinic to continue.",
+    "forbidden": "You don’t have permission to do this.",
+    "not_found": "We couldn’t find that. It may have been removed.",
+    "conflict": "This clashes with existing details. Refresh the page and try again.",
+    "rate_limited": "Too many attempts. Please wait a while and try again.",
+    "invalid_code": "That code is wrong or has expired.",
+    "last_owner": "A clinic must always have at least one active owner. Make someone else an owner first.",
+    "internal_error": "Something went wrong on our side. Please try again."
+  },
+  "session": {
+    "lostTitle": "You’ve been signed out",
+    "lostBody": "Please sign in again to continue."
+  },
+  "language": {
+    "label": "Language",
+    "en": "English",
+    "hi": "हिन्दी",
+    "enHint": "Show CareLoop in English",
+    "hiHint": "Show CareLoop in Hindi"
+  },
+  "auth": {
+    "footer": "Clinic software for independent clinics across India"
+  },
+  "signIn": {
+    "title": "Sign in",
+    "subtitle": "Use the mobile number your clinic registered for you.",
+    "phoneLabel": "Mobile number",
+    "countryCode": "+91",
+    "phonePlaceholder": "98765 43210",
+    "phoneHint": "We’ll send a 6-digit code by SMS.",
+    "sendCode": "Send code",
+    "sending": "Sending code…",
+    "codeSent": "If this number is registered with a clinic, a 6-digit code is on its way.",
+    "codeLabel": "Enter the 6-digit code",
+    "verify": "Verify and sign in",
+    "verifying": "Checking code…",
+    "changeNumber": "Change number",
+    "resendIn": "Resend code in {seconds} s",
+    "resend": "Resend code",
+    "invalidPhone": "Enter a valid 10-digit Indian mobile number.",
+    "wrongCode": "That code is wrong or has expired. Check the SMS or ask for a new code.",
+    "locked": "Too many attempts. For your security, please wait a while before trying again.",
+    "signedOutNotice": "You’ve been signed out. Please sign in again to continue."
+  },
+  "chooseClinic": {
+    "title": "Choose a clinic",
+    "description": "You work at more than one clinic. Pick the one you want to work in now. You can switch later.",
+    "current": "Current"
+  },
+  "noClinic": {
+    "title": "No clinic to open",
+    "body": "This account isn’t linked to an active clinic right now. Please contact your clinic owner."
+  },
+  "roles": {
+    "owner": "Owner",
+    "doctor": "Doctor",
+    "front_desk": "Front desk"
+  },
+  "nav": {
+    "label": "Main menu",
+    "home": "Home",
+    "team": "Team",
+    "language": "Language"
+  },
+  "header": {
+    "clinic": "Clinic",
+    "switchClinic": "Switch clinic"
+  },
+  "userMenu": {
+    "open": "Account menu",
+    "languageSettings": "Language settings",
+    "signOut": "Sign out"
+  },
+  "home": {
+    "eyebrow": "Today at your clinic",
+    "description": "Your clinic’s workspace. More tools will appear here as they are ready.",
+    "yourRoles": "Your roles",
+    "comingSoonTitle": "On the way",
+    "comingSoonDescription": "These parts of CareLoop are being built and will appear here soon.",
+    "comingSoon": "Coming soon",
+    "upcoming": {
+      "appointments": {
+        "title": "Appointments and queue",
+        "description": "Book patients, hand out tokens and run a live waiting-room queue."
+      },
+      "patients": {
+        "title": "Patients",
+        "description": "Register patients once and find their records in seconds."
+      },
+      "consultations": {
+        "title": "Consultations",
+        "description": "Record visits and create clear, printable prescriptions."
+      },
+      "billing": {
+        "title": "Billing",
+        "description": "Create bills and receipts, take UPI payments and see the day’s totals."
+      }
+    }
+  },
+  "notPermitted": {
+    "title": "You can’t open this page",
+    "body": "Your role in this clinic doesn’t include this page. If you need it, ask your clinic owner.",
+    "backHome": "Go to Home"
+  },
+  "settingsLanguage": {
+    "eyebrow": "Settings",
+    "title": "Language",
+    "description": "Choose the language CareLoop uses on this device."
+  },
+  "team": {
+    "eyebrow": "Clinic",
+    "title": "Team",
+    "description": "Invite staff, choose what each person can do and remove access when someone leaves.",
+    "invite": "Invite staff",
+    "loading": "Loading team",
+    "errorTitle": "We couldn’t load your team",
+    "errorDescription": "Check your connection and try again.",
+    "retry": "Try again",
+    "emptyTitle": "No staff yet",
+    "emptyDescription": "Invite the doctors and front-desk staff who work at this clinic.",
+    "columns": {
+      "name": "Name",
+      "phone": "Mobile number",
+      "roles": "Roles",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "unnamed": "Name not added yet",
+    "you": "You",
+    "status": {
+      "active": "Active",
+      "deactivated": "Deactivated"
+    },
+    "actionsFor": "Actions for {name}",
+    "editRoles": "Change roles",
+    "deactivate": "Deactivate",
+    "reactivate": "Reactivate",
+    "rolesLabel": "Roles",
+    "roleHints": {
+      "owner": "Manages staff and clinic settings",
+      "doctor": "Sees patients and writes prescriptions",
+      "front_desk": "Registers patients and books appointments"
+    },
+    "problems": {
+      "invalidPhone": "Enter a valid 10-digit Indian mobile number.",
+      "alreadyMember": "This number is already an active member of this clinic.",
+      "rolesRequired": "Choose at least one role."
+    },
+    "toasts": {
+      "invited": "Staff member added",
+      "rolesChanged": "Roles updated",
+      "deactivated": "Staff member deactivated",
+      "reactivated": "Staff member reactivated",
+      "failed": "That didn’t work"
+    },
+    "inviteDialog": {
+      "title": "Invite staff",
+      "description": "They sign in with this mobile number and a one-time code.",
+      "phoneLabel": "Mobile number",
+      "phonePlaceholder": "98765 43210",
+      "cancel": "Cancel",
+      "submit": "Send invite"
+    },
+    "rolesDialog": {
+      "title": "Change roles",
+      "description": "Choose what {name} can do in this clinic.",
+      "confirmTitle": "Remove owner role?",
+      "confirmBody": "{name} will no longer be able to manage staff or clinic settings.",
+      "confirmSelfBody": "You will no longer be able to manage staff or clinic settings, and you’ll lose access to this page.",
+      "back": "Back",
+      "cancel": "Cancel",
+      "submit": "Save roles",
+      "confirm": "Remove owner role"
+    },
+    "deactivateDialog": {
+      "title": "Deactivate {name}?",
+      "body": "They will be signed out of this clinic straight away and can’t sign in to it again until you reactivate them.",
+      "selfBody": "You will be signed out of this clinic straight away and can’t open it again unless another owner reactivates you.",
+      "cancel": "Cancel",
+      "confirm": "Deactivate"
+    }
+  },
+  "dev": {
+    "lightTheme": "Light theme",
+    "darkTheme": "Dark theme",
+    "title": "Component preview",
+    "description": "Every component in the CareLoop UI kit.",
+    "action": "Action",
+    "buttons": "Buttons",
+    "primary": "Primary",
+    "secondary": "Secondary",
+    "outline": "Outline",
+    "ghost": "Ghost",
+    "link": "Link",
+    "destructive": "Destructive",
+    "loading": "Loading",
+    "small": "Small",
+    "large": "Large",
+    "icon": "Icon button",
+    "badges": "Badges",
+    "success": "Success",
+    "warning": "Warning",
+    "inputs": "Inputs",
+    "placeholder": "Sample field",
+    "fieldError": "This field needs attention.",
+    "otp": "One-time code",
+    "cardsAndAvatars": "Cards, avatars and skeletons",
+    "cardTitle": "Sample card",
+    "cardDescription": "Cards group related content.",
+    "initials": "DC",
+    "table": "Table",
+    "tableCaption": "Sample rows with made-up data.",
+    "columnName": "Name",
+    "columnStatus": "Status",
+    "sampleName": "Demo Staff",
+    "emptyState": "Empty state",
+    "emptyTitle": "Nothing here yet",
+    "emptyDescription": "Empty states explain what will appear and what to do next.",
+    "overlays": "Dialogs, menus and toasts",
+    "openDialog": "Open dialog",
+    "dialogTitle": "Sample dialog",
+    "dialogDescription": "Dialogs trap focus and close with Escape.",
+    "openMenu": "Open menu",
+    "menuLabel": "Options",
+    "optionOne": "Option one",
+    "optionTwo": "Option two",
+    "showToast": "Show toast",
+    "toastTitle": "Saved",
+    "toastBody": "Toasts confirm that something happened.",
+    "sidebar": "Sidebar",
+    "sidebarHint": "Below the large breakpoint the sidebar opens as a drawer."
+  }
+}

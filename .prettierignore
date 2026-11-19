@@ -5,3 +5,4 @@ pnpm-lock.yaml
 **/migrations/**/*.sql
 docs/plans
 CLAUDE.md
+**/next-env.d.ts

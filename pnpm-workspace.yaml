@@ -5,6 +5,7 @@ packages:
 # Build scripts are blocked by default; only these packages may run them.
 allowBuilds:
   "@prisma/engines": true
+  "@parcel/watcher": false
   "@swc/core": true
   esbuild: true
   prisma: true

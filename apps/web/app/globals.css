@@ -1,0 +1,4 @@
+@import "@careloop/ui/styles.css";
+
+/* Scan the web app's own files as well as the UI kit. */
+@source "../";
